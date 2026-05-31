@@ -1,52 +1,131 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { List, CalendarRange, Loader2, Command } from 'lucide-react';
+import { List, CalendarRange, Loader2, Command, Sun, Moon, LayoutGrid, LogOut } from 'lucide-react';
 import { supabase, Categoria, Pendiente } from '../lib/supabase';
 import CategoryTabs from '../components/CategoryTabs';
 import QuickInput from '../components/QuickInput';
 import TaskListView from '../components/TaskListView';
 import TaskTimelineView from '../components/TaskTimelineView';
+import TaskVisualView from '../components/TaskVisualView';
+import TaskDetailModal from '../components/TaskDetailModal';
+import AuthScreen from '../components/AuthScreen';
+import { User } from '@supabase/supabase-js';
 
 // Paleta de colores premium para nuevas categorías
 const PREMIUM_COLORS = [
-  '#3b82f6', // Azul
-  '#10b981', // Esmeralda
-  '#f59e0b', // Ámbar
-  '#ec4899', // Rosa
-  '#8b5cf6', // Violeta
-  '#06b6d4', // Cian
-  '#f43f5e', // Rosa Intenso
-  '#a855f7', // Púrpura
-  '#14b8a6', // Teal
+  '#3b82f6', // Azul Cobalto
+  '#10b981', // Esmeralda Brillante
+  '#f59e0b', // Ámbar Metálico
+  '#ec4899', // Rosa Eléctrico
+  '#8b5cf6', // Violeta Real
+  '#06b6d4', // Cian Nórdico
+  '#f43f5e', // Rosa Coral
+  '#a855f7', // Púrpura Orquídea
+  '#14b8a6', // Menta Teal
+  '#f97316', // Naranja Cobre
+  '#fbbf24', // Oro Brillante
+  '#34d399', // Verde Primavera
+  '#60a5fa', // Azul Cielo
+  '#a78bfa', // Lavanda Suave
+  '#22c55e', // Verde Bosque
+  '#6366f1', // Índigo Místico
+  '#d946ef', // Magenta Imperial
+  '#fb7185', // Rosa Fresa
+  '#c084fc', // Lila
+  '#2dd4bf', // Verde Agua
+  '#818cf8', // Azul Lavanda
+  '#059669', // Verde Jade
+  '#0284c7', // Azul Océano
+  '#b45309', // Canela Terracota
+  '#701a75', // Ciruela Oscuro
+  '#4d7c0f', // Verde Oliva
+  '#be123c', // Rojo Rubí
+  '#4338ca', // Violeta Nocturno
+  '#0f766e', // Verde Pino
+  '#ea580c', // Óxido Naranja
+  '#0369a1', // Mar Profundo
+  '#15803d', // Trébol Verde
 ];
 
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [categories, setCategories] = useState<Categoria[]>([]);
   const [tasks, setTasks] = useState<Pendiente[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'timeline' | 'visual'>('list');
   const [isLoading, setIsLoading] = useState(true);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [selectedTask, setSelectedTask] = useState<Pendiente | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Escuchar estado de autenticación
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Efecto para inicializar el tema
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' | null;
+      if (savedTheme) {
+        setTheme(savedTheme);
+        if (savedTheme === 'light') {
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.remove('light');
+        }
+      } else {
+        const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+        const initialTheme = prefersLight ? 'light' : 'dark';
+        setTheme(initialTheme);
+        if (initialTheme === 'light') {
+          document.documentElement.classList.add('light');
+        } else {
+          document.documentElement.classList.remove('light');
+        }
+      }
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('theme', nextTheme);
+    if (nextTheme === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+  };
 
   // Carga inicial de datos
   useEffect(() => {
     async function loadData() {
+      if (!user) return;
       try {
         setIsLoading(true);
         setErrorMessage(null);
-
-        // ── DIAGNÓSTICO TEMPORAL ─────────────────────────────────────────
-        // Esto imprimirá en la consola del NAVEGADOR la URL exacta que usa Supabase.
-        // Si ves algo raro (trailing slash, espacios, undefined) ¡ahí está el bug!
-        console.log('[DEBUG] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-        console.log('[DEBUG] Anon Key (primeros 20 chars):', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 20));
-        // ────────────────────────────────────────────────────────────────
 
         // Fetch Categorías
         const { data: catsData, error: catsError } = await supabase
           .from('categorias')
           .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: true });
 
         if (catsError) throw catsError;
@@ -55,12 +134,51 @@ export default function Home() {
         const { data: tasksData, error: tasksError } = await supabase
           .from('pendientes')
           .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
         if (tasksError) throw tasksError;
 
-        setCategories(catsData || []);
-        setTasks(tasksData || []);
+        const loadedCats = catsData || [];
+        if (typeof window !== 'undefined') {
+          const storedOrder = localStorage.getItem(`category_order_${user.id}`);
+          if (storedOrder) {
+            try {
+              const ids = JSON.parse(storedOrder) as string[];
+              loadedCats.sort((a, b) => {
+                const idxA = ids.indexOf(a.id);
+                const idxB = ids.indexOf(b.id);
+                if (idxA === -1 && idxB === -1) return 0;
+                if (idxA === -1) return 1;
+                if (idxB === -1) return -1;
+                return idxA - idxB;
+              });
+            } catch (e) {
+              console.error('Error parseando category_order:', e);
+            }
+          }
+        }
+        const loadedTasks = tasksData || [];
+        if (typeof window !== 'undefined') {
+          const storedTaskOrder = localStorage.getItem(`task_order_${user.id}`);
+          if (storedTaskOrder) {
+            try {
+              const ids = JSON.parse(storedTaskOrder) as string[];
+              loadedTasks.sort((a, b) => {
+                const idxA = ids.indexOf(a.id);
+                const idxB = ids.indexOf(b.id);
+                if (idxA === -1 && idxB === -1) return 0;
+                if (idxA === -1) return 1;
+                if (idxB === -1) return -1;
+                return idxA - idxB;
+              });
+            } catch (e) {
+              console.error('Error parseando task_order:', e);
+            }
+          }
+        }
+        setCategories(loadedCats);
+        setTasks(loadedTasks);
       } catch (err) {
         console.error('Error cargando datos de Supabase:', err);
         setErrorMessage(
@@ -72,10 +190,54 @@ export default function Home() {
     }
 
     loadData();
-  }, []);
+  }, [user]);
+
+  // Curar colores de categorías duplicados o planos automáticamente
+  useEffect(() => {
+    if (categories.length > 0 && !isLoading && user) {
+      const healColors = async () => {
+        const usedColors = new Set<string>();
+        const categoriesToUpdate: { id: string; color: string }[] = [];
+        
+        categories.forEach((cat) => {
+          if (usedColors.has(cat.color) || !PREMIUM_COLORS.includes(cat.color)) {
+            const availableColors = PREMIUM_COLORS.filter(color => !usedColors.has(color));
+            const newColor = availableColors.length > 0
+              ? availableColors[Math.floor(Math.random() * availableColors.length)]
+              : PREMIUM_COLORS[Math.floor(Math.random() * PREMIUM_COLORS.length)];
+            
+            categoriesToUpdate.push({ id: cat.id, color: newColor });
+            usedColors.add(newColor);
+          } else {
+            usedColors.add(cat.color);
+          }
+        });
+
+        if (categoriesToUpdate.length > 0) {
+          console.log('[DEBUG] Curando colores duplicados para:', categoriesToUpdate);
+          for (const item of categoriesToUpdate) {
+            await supabase
+              .from('categorias')
+              .update({ color: item.color })
+              .eq('id', item.id)
+              .eq('user_id', user.id);
+          }
+          setCategories((prev) =>
+            prev.map((c) => {
+              const update = categoriesToUpdate.find((u) => u.id === c.id);
+              return update ? { ...c, color: update.color } : c;
+            })
+          );
+        }
+      };
+      
+      healColors();
+    }
+  }, [categories, isLoading, user]);
 
   // 1. CREACIÓN DE TAREA (Optimista)
   const handleCreateTask = async (titulo: string, fechaLimite: string | null) => {
+    if (!user) return;
     const tempId = crypto.randomUUID();
     const newTask: Pendiente = {
       id: tempId,
@@ -85,6 +247,7 @@ export default function Home() {
       fecha_limite: fechaLimite,
       completado: false,
       categoria_id: activeCategoryId, // Si estamos en Inbox es null, si no, toma la pestaña activa
+      user_id: user.id,
     };
 
     // Actualización optimista de estado local
@@ -98,6 +261,7 @@ export default function Home() {
           fecha_limite: newTask.fecha_limite,
           completado: newTask.completado,
           categoria_id: newTask.categoria_id,
+          user_id: user.id,
         }])
         .select()
         .single();
@@ -118,6 +282,7 @@ export default function Home() {
 
   // 2. TOGGLE COMPLETAR TAREA (Optimista)
   const handleToggleTask = async (id: string, completado: boolean) => {
+    if (!user) return;
     // Guardar copia del estado anterior
     const previousTasks = [...tasks];
 
@@ -130,7 +295,8 @@ export default function Home() {
       const { error } = await supabase
         .from('pendientes')
         .update({ completado })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
 
       if (error) throw error;
     } catch (err) {
@@ -143,6 +309,7 @@ export default function Home() {
 
   // 3. ELIMINAR TAREA (Optimista)
   const handleDeleteTask = async (id: string) => {
+    if (!user) return;
     const previousTasks = [...tasks];
 
     // Actualización optimista
@@ -152,7 +319,8 @@ export default function Home() {
       const { error } = await supabase
         .from('pendientes')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
 
       if (error) throw error;
     } catch (err) {
@@ -164,6 +332,7 @@ export default function Home() {
 
   // 4. ACTUALIZAR TAREA - Renombrar (Optimista)
   const handleUpdateTask = async (id: string, updates: Partial<Pendiente>) => {
+    if (!user) return;
     const previousTasks = [...tasks];
 
     // Actualización optimista
@@ -175,7 +344,8 @@ export default function Home() {
       const { error } = await supabase
         .from('pendientes')
         .update(updates)
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
 
       if (error) throw error;
     } catch (err) {
@@ -187,13 +357,21 @@ export default function Home() {
 
   // 5. CREACIÓN DE CATEGORÍA (Optimista)
   const handleCreateCategory = async (nombre: string) => {
+    if (!user) return;
     const tempId = crypto.randomUUID();
-    const randomColor = PREMIUM_COLORS[Math.floor(Math.random() * PREMIUM_COLORS.length)];
+    // Algoritmo para evitar colores repetidos en categorías activas
+    const usedColors = categories.map((c) => c.color);
+    const unusedColors = PREMIUM_COLORS.filter((color) => !usedColors.includes(color));
+    const finalColor = unusedColors.length > 0 
+      ? unusedColors[Math.floor(Math.random() * unusedColors.length)]
+      : PREMIUM_COLORS[Math.floor(Math.random() * PREMIUM_COLORS.length)];
+
     const newCat: Categoria = {
       id: tempId,
       created_at: new Date().toISOString(),
       nombre,
-      color: randomColor,
+      color: finalColor,
+      user_id: user.id,
     };
 
     // Actualización optimista
@@ -202,7 +380,7 @@ export default function Home() {
     try {
       const { data, error } = await supabase
         .from('categorias')
-        .insert([{ nombre: newCat.nombre, color: newCat.color }])
+        .insert([{ nombre: newCat.nombre, color: newCat.color, user_id: user.id }])
         .select()
         .single();
 
@@ -223,6 +401,7 @@ export default function Home() {
 
   // 6. RENOMBRAR CATEGORÍA (Optimista)
   const handleRenameCategory = async (id: string, nuevoNombre: string) => {
+    if (!user) return;
     const previousCats = [...categories];
 
     // Actualización optimista
@@ -234,7 +413,8 @@ export default function Home() {
       const { error } = await supabase
         .from('categorias')
         .update({ nombre: nuevoNombre })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
 
       if (error) throw error;
     } catch (err) {
@@ -246,6 +426,7 @@ export default function Home() {
 
   // 7. ELIMINAR CATEGORÍA (Optimista)
   const handleDeleteCategory = async (id: string) => {
+    if (!user) return;
     const previousCats = [...categories];
     const previousTasks = [...tasks];
 
@@ -262,7 +443,8 @@ export default function Home() {
       const { error } = await supabase
         .from('categorias')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
 
       if (error) throw error;
     } catch (err) {
@@ -273,53 +455,136 @@ export default function Home() {
     }
   };
 
+  // 8. REORDENAR CATEGORÍAS (Local y Persistente)
+  const handleReorderCategories = (orderedCats: Categoria[]) => {
+    setCategories(orderedCats);
+    if (typeof window !== 'undefined' && user) {
+      const ids = orderedCats.map((c) => c.id);
+      localStorage.setItem(`category_order_${user.id}`, JSON.stringify(ids));
+    }
+  };
+
+  // 9. REORDENAR PENDIENTES (Local y Persistente)
+  const handleReorderTasks = (orderedTasks: Pendiente[]) => {
+    setTasks(orderedTasks);
+    if (typeof window !== 'undefined' && user) {
+      const ids = orderedTasks.map((t) => t.id);
+      localStorage.setItem(`task_order_${user.id}`, JSON.stringify(ids));
+    }
+  };
+
   // Nombre de la categoría activa para mostrar en el placeholder del input
   const activeCategoryName =
     activeCategoryId === null
       ? 'Inbox / Hoy'
       : categories.find((c) => c.id === activeCategoryId)?.nombre || 'Categoría';
 
+  const pendingCount = tasks.filter(t => !t.completado).length;
+  const completedCount = tasks.filter(t => t.completado).length;
+  const totalCount = pendingCount + completedCount;
+  const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  const filteredSearchTasks = tasks.filter((t) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const titleMatch = t.titulo.toLowerCase().includes(q);
+    const noteMatch = t.nota ? t.nota.toLowerCase().includes(q) : false;
+    return titleMatch || noteMatch;
+  });
+
+  // Si está cargando la sesión de autenticación, mostrar pantalla de carga
+  if (authLoading) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[var(--c-page-bg)] gap-3 animate-fade-in">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+        <span className="text-xs text-slate-500 font-medium tracking-wide uppercase">Cargando Sesión...</span>
+      </div>
+    );
+  }
+
+  // Si no hay usuario logueado, mostrar AuthScreen
+  if (!user) {
+    return <AuthScreen onAuthSuccess={() => {}} />;
+  }
+
   return (
     <div className="flex-1 w-full max-w-3xl mx-auto flex flex-col px-4 md:px-8 py-8 md:py-16 gap-8">
       {/* HEADER: Título y Selector de Vista */}
       <header className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/10 flex-shrink-0">
             <span className="font-bold text-base tracking-tighter">O</span>
-            <span className="font-semibold text-xs tracking-tighter -ml-0.5 text-blue-400">S</span>
+            <span className="font-semibold text-xs tracking-tighter -ml-0.5 text-indigo-200">S</span>
           </div>
           <div className="flex flex-col">
-            <h1 className="text-lg font-bold text-white leading-tight">Personal Task OS</h1>
-            <p className="text-[10px] text-slate-400 font-medium">MINIMALIST WORKSPACE</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg font-extrabold leading-tight text-gradient-luxury">Personal Task OS</h1>
+              {totalCount > 0 && (
+                <div className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/15 px-2 py-0.5 rounded-lg text-[9px] font-extrabold text-indigo-500 tracking-wide animate-check-pop">
+                  <div className="relative w-3 h-3 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="6" cy="6" r="4.5" fill="transparent" stroke="currentColor" className="opacity-15" strokeWidth="1" />
+                      <circle 
+                        cx="6" 
+                        cy="6" 
+                        r="4.5" 
+                        fill="transparent" 
+                        stroke="currentColor" 
+                        strokeWidth="1" 
+                        strokeDasharray={2 * Math.PI * 4.5} 
+                        strokeDashoffset={2 * Math.PI * 4.5 * (1 - completionRate / 100)} 
+                        className="transition-all duration-500"
+                      />
+                    </svg>
+                  </div>
+                  <span>{completionRate}% HECHO</span>
+                </div>
+              )}
+            </div>
+            <p className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">Luxury Workspace</p>
           </div>
         </div>
 
-        {/* Interruptor de Modo Dual de Visualización */}
-        <div className="flex items-center p-0.5 bg-white/5 border border-white/5 rounded-xl">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-smooth cursor-pointer ${
-              viewMode === 'list'
-                ? 'bg-white text-slate-950 shadow-md shadow-white/5'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-            title="Vista Lista"
-          >
-            <List className="w-3.5 h-3.5" />
-            <span className="max-sm:hidden">Lista</span>
-          </button>
-          <button
-            onClick={() => setViewMode('timeline')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-smooth cursor-pointer ${
-              viewMode === 'timeline'
-                ? 'bg-white text-slate-950 shadow-md shadow-white/5'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-            title="Vista Línea de Tiempo"
-          >
-            <CalendarRange className="w-3.5 h-3.5" />
-            <span className="max-sm:hidden">Línea de Tiempo</span>
-          </button>
+        <div className="flex items-center gap-2.5">
+          {/* Interruptor de Vista Triple */}
+          <div className="flex items-center p-0.5 glass-panel rounded-xl">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Vista Lista"
+            >
+              <List className="w-3.5 h-3.5" />
+              <span className="max-sm:hidden">Lista</span>
+            </button>
+            <button
+              onClick={() => setViewMode('timeline')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
+                viewMode === 'timeline'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Vista Línea de Tiempo"
+            >
+              <CalendarRange className="w-3.5 h-3.5" />
+              <span className="max-sm:hidden">Línea de Tiempo</span>
+            </button>
+            <button
+              onClick={() => setViewMode('visual')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
+                viewMode === 'visual'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Vista Planificador Visual"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span className="max-sm:hidden">Visual</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -344,15 +609,34 @@ export default function Home() {
         </div>
       ) : (
         <main className="flex flex-col gap-6 flex-1">
-          {/* Fila de Captura Rápida (Solo visible si no hay error crítico) */}
-          <section className="flex flex-col gap-2">
-            <QuickInput
-              onSubmitTask={handleCreateTask}
-              activeCategoryName={activeCategoryName}
-            />
+          {/* Fila de Captura Rápida y Buscador Minimalista */}
+          <section className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <QuickInput
+                onSubmitTask={handleCreateTask}
+                activeCategoryName={activeCategoryName}
+              />
+            </div>
+            <div className="relative flex items-center sm:w-60 w-full">
+              <input
+                type="text"
+                placeholder="Buscar pendientes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full glass-input px-3.5 py-3 text-xs md:text-sm rounded-xl text-luxury-primary placeholder:text-slate-500 font-normal focus:ring-1 focus:ring-indigo-500/20"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3.5 text-slate-500 hover:text-luxury-primary text-[10px] font-bold cursor-pointer transition-smooth"
+                >
+                  limpiar
+                </button>
+              )}
+            </div>
           </section>
 
-          {/* Barra de Pestañas Dinámicas (Oculta en modo Timeline, tal como especificó el requerimiento) */}
+          {/* Barra de Pestañas Dinámicas */}
           {viewMode === 'list' && (
             <section className="flex flex-col gap-1 border-b border-white/5 pb-2">
               <CategoryTabs
@@ -362,6 +646,7 @@ export default function Home() {
                 onCreateCategory={handleCreateCategory}
                 onRenameCategory={handleRenameCategory}
                 onDeleteCategory={handleDeleteCategory}
+                onReorderCategories={handleReorderCategories}
               />
             </section>
           )}
@@ -370,16 +655,27 @@ export default function Home() {
           <section className="flex-1">
             {viewMode === 'list' ? (
               <TaskListView
-                tasks={tasks}
+                tasks={filteredSearchTasks}
                 categories={categories}
                 activeCategoryId={activeCategoryId}
                 onToggleTask={handleToggleTask}
                 onDeleteTask={handleDeleteTask}
                 onUpdateTask={handleUpdateTask}
+                onReorderTasks={handleReorderTasks}
+                onOpenDetail={setSelectedTask}
+              />
+            ) : viewMode === 'timeline' ? (
+              <TaskTimelineView
+                tasks={filteredSearchTasks}
+                categories={categories}
+                onToggleTask={handleToggleTask}
+                onDeleteTask={handleDeleteTask}
+                onUpdateTask={handleUpdateTask}
+                onOpenDetail={setSelectedTask}
               />
             ) : (
-              <TaskTimelineView
-                tasks={tasks}
+              <TaskVisualView
+                tasks={filteredSearchTasks}
                 categories={categories}
                 onToggleTask={handleToggleTask}
                 onDeleteTask={handleDeleteTask}
@@ -390,14 +686,45 @@ export default function Home() {
         </main>
       )}
 
-      {/* FOOTER: Atajo visual flotante o informativo */}
-      <footer className="flex items-center justify-between text-[10px] text-slate-500 border-t border-white/5 pt-4">
-        <span>Personal Task OS • v1.0.0</span>
-        <div className="flex items-center gap-1 font-mono">
-          <Command className="w-2.5 h-2.5" />
-          <span>+ K enfoca la captura</span>
-        </div>
-      </footer>
+      {/* Modal de Detalles Único de la Tarea (Global para List y Timeline) */}
+      {selectedTask && (
+        <TaskDetailModal
+          isOpen={!!selectedTask}
+          onClose={() => setSelectedTask(null)}
+          task={selectedTask}
+          categories={categories}
+          onUpdate={handleUpdateTask}
+          onDelete={handleDeleteTask}
+        />
+      )}
+
+      {/* Botones Flotantes en la esquina inferior derecha */}
+      <div className="fixed bottom-6 right-6 z-[40] flex items-center gap-3">
+        {/* Botón de Cerrar Sesión */}
+        <button
+          onClick={async () => {
+            const { error } = await supabase.auth.signOut();
+            if (error) alert('Error al cerrar sesión.');
+          }}
+          className="w-11 h-11 rounded-full glass-panel glass-panel-hover flex items-center justify-center text-slate-400 hover:text-red-400 shadow-2xl transition-smooth cursor-pointer border border-white/10"
+          title="Cerrar Sesión"
+        >
+          <LogOut className="w-4.5 h-4.5" />
+        </button>
+
+        {/* Botón Flotante de Tema */}
+        <button
+          onClick={toggleTheme}
+          className="w-11 h-11 rounded-full glass-panel glass-panel-hover flex items-center justify-center text-slate-400 hover:text-white shadow-2xl transition-smooth cursor-pointer border border-white/10"
+          title={theme === 'dark' ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+        >
+          {theme === 'dark' ? (
+            <Sun className="w-5 h-5 text-amber-400 animate-check-pop" />
+          ) : (
+            <Moon className="w-5 h-5 text-indigo-600 animate-check-pop" />
+          )}
+        </button>
+      </div>
     </div>
   );
 }

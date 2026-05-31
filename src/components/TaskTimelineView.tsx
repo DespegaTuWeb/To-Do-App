@@ -12,6 +12,7 @@ interface TaskTimelineViewProps {
   onToggleTask: (id: string, completado: boolean) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
   onUpdateTask: (id: string, updates: Partial<Pendiente>) => Promise<void>;
+  onOpenDetail?: (task: Pendiente) => void;
 }
 
 export default function TaskTimelineView({
@@ -20,6 +21,7 @@ export default function TaskTimelineView({
   onToggleTask,
   onDeleteTask,
   onUpdateTask,
+  onOpenDetail,
 }: TaskTimelineViewProps) {
   const groups = groupTasksByTimeline(tasks);
 
@@ -52,7 +54,7 @@ export default function TaskTimelineView({
       title: 'Hoy',
       items: groups.hoy,
       dotColor: 'bg-white ring-white/10',
-      textColor: 'text-white font-bold',
+      textColor: 'text-luxury-primary font-extrabold',
     },
     {
       key: 'manana',
@@ -65,15 +67,15 @@ export default function TaskTimelineView({
       key: 'estaSemana',
       title: 'Esta Semana',
       items: groups.estaSemana,
-      dotColor: 'bg-indigo-400 ring-indigo-400/20',
-      textColor: 'text-indigo-400',
+      dotColor: 'bg-emerald-400 ring-emerald-400/20',
+      textColor: 'text-emerald-400',
     },
     {
       key: 'sinFecha',
       title: 'Ideas sin Fecha',
       items: groups.sinFecha,
       dotColor: 'bg-slate-500 ring-slate-500/20',
-      textColor: 'text-slate-400',
+      textColor: 'text-luxury-secondary',
     },
   ];
 
@@ -91,7 +93,7 @@ export default function TaskTimelineView({
                 
                 {/* Cabecera del Grupo */}
                 <h3 className={`text-xs md:text-sm font-semibold tracking-wide uppercase ${textColor}`}>
-                  {title} <span className="text-[10px] text-slate-500 font-normal ml-1">({items.length})</span>
+                  {title} <span className="text-[10px] text-luxury-muted font-normal ml-1">({items.length})</span>
                 </h3>
 
                 {/* Lista de Tareas del Grupo */}
@@ -107,6 +109,7 @@ export default function TaskTimelineView({
                         onToggle={onToggleTask}
                         onDelete={onDeleteTask}
                         onUpdate={onUpdateTask}
+                        onOpenDetail={onOpenDetail}
                       />
                     );
                   })}
@@ -118,11 +121,11 @@ export default function TaskTimelineView({
       ) : (
         /* Estado vacío del Timeline */
         <div className="flex flex-col items-center justify-center py-16 px-4 glass-panel rounded-2xl border-dashed border-white/10 text-center">
-          <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mb-4 text-slate-400">
+          <div className="w-12 h-12 bg-indigo-500/5 border border-indigo-500/10 rounded-full flex items-center justify-center mb-4 text-luxury-secondary">
             <CalendarRange className="w-5 h-5 text-indigo-400" />
           </div>
-          <h3 className="text-sm font-semibold text-slate-200">Línea de tiempo vacía</h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-[260px]">
+          <h3 className="text-sm font-semibold text-luxury-primary">Línea de tiempo vacía</h3>
+          <p className="text-xs text-luxury-secondary mt-1 max-w-[260px] leading-relaxed">
             No tienes pendientes activos planificados en el tiempo. ¡Excelente estado de organización!
           </p>
         </div>

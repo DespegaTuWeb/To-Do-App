@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Calendar, Keyboard } from 'lucide-react';
+import { Plus, Calendar } from 'lucide-react';
+import CalendarModal from './CalendarModal';
 
 interface QuickInputProps {
   onSubmitTask: (titulo: string, fechaLimite: string | null) => Promise<void>;
@@ -11,27 +12,16 @@ interface QuickInputProps {
 export default function QuickInput({ onSubmitTask, activeCategoryName }: QuickInputProps) {
   const [titulo, setTitulo] = useState('');
   const [fechaLimite, setFechaLimite] = useState<string>('');
-  const [shortcutText, setShortcutText] = useState('Ctrl + K');
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Detectar sistema operativo para mostrar el atajo correcto (⌘K o Ctrl+K)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isMac = navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
-      setTimeout(() => {
-        setShortcutText(isMac ? '⌘K' : 'Ctrl + K');
-      }, 0);
-    }
-  }, []);
 
   // Listener global para atajo Ctrl + K / ⌘K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Soporta tanto Ctrl+K como Cmd+K
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         inputRef.current?.focus();
-        // Efecto visual rápido de parpadeo
         inputRef.current?.classList.add('ring-2', 'ring-white/20');
         setTimeout(() => {
           inputRef.current?.classList.remove('ring-2', 'ring-white/20');
@@ -66,27 +56,22 @@ export default function QuickInput({ onSubmitTask, activeCategoryName }: QuickIn
           value={titulo}
           onChange={(e) => setTitulo(e.target.value)}
           placeholder={`Añadir tarea en "${activeCategoryName}"...`}
-          className="w-full glass-input px-4 py-3.5 pr-32 text-sm md:text-base rounded-xl text-white placeholder:text-slate-500 font-normal focus:ring-1 focus:ring-white/10"
+          className="w-full glass-input px-4 py-3.5 pr-32 text-sm md:text-base rounded-xl text-luxury-primary placeholder:text-slate-500 font-normal focus:ring-1 focus:ring-indigo-500/20"
         />
 
         {/* Panel lateral derecho del input: fecha y atajo */}
         <div className="absolute right-3 flex items-center gap-2">
-          {/* Selector de fecha minimalista integrado */}
-          <div className="relative group flex items-center">
-            <input
-              type="date"
-              value={fechaLimite}
-              onChange={(e) => setFechaLimite(e.target.value)}
-              className="absolute inset-0 opacity-0 w-8 h-8 cursor-pointer z-10"
-              title="Añadir fecha límite"
-            />
+          {/* Selector de fecha con CalendarModal */}
+          <div className="relative flex items-center">
             <button
               type="button"
-              className={`p-1.5 rounded-lg transition-smooth ${
+              onClick={() => setShowCalendarModal(true)}
+              className={`p-1.5 rounded-lg transition-smooth cursor-pointer ${
                 fechaLimite 
                   ? 'bg-blue-500/20 border border-blue-500/40 text-blue-400' 
-                  : 'hover:bg-white/10 text-slate-400 hover:text-slate-200'
+                  : 'hover:bg-indigo-500/10 text-luxury-secondary hover:text-luxury-primary'
               }`}
+              title="Añadir fecha límite"
             >
               <Calendar className="w-4 h-4" />
             </button>
@@ -97,16 +82,12 @@ export default function QuickInput({ onSubmitTask, activeCategoryName }: QuickIn
             )}
           </div>
 
-          {/* Atajo visual */}
-          <kbd className="hidden sm:flex items-center gap-1 px-1.5 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] text-slate-400 font-mono pointer-events-none select-none">
-            <Keyboard className="w-3 h-3" />
-            {shortcutText}
-          </kbd>
+
 
           {/* Botón de envío */}
           <button
             type="submit"
-            className="flex items-center justify-center p-1.5 bg-white text-slate-950 rounded-lg hover:bg-slate-200 active:scale-95 transition-smooth cursor-pointer"
+            className="flex items-center justify-center p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 active:scale-95 transition-smooth cursor-pointer"
             title="Guardar Tarea"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
@@ -128,6 +109,14 @@ export default function QuickInput({ onSubmitTask, activeCategoryName }: QuickIn
           </button>
         </div>
       )}
+
+      {/* Modal de Calendario Premium */}
+      <CalendarModal
+        isOpen={showCalendarModal}
+        onClose={() => setShowCalendarModal(false)}
+        onSelectDate={(dateStr) => setFechaLimite(dateStr || '')}
+        currentValue={fechaLimite || null}
+      />
     </form>
   );
 }

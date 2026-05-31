@@ -13,6 +13,7 @@ export interface Categoria {
   created_at: string;
   nombre: string;
   color: string;
+  user_id?: string;
 }
 
 export interface Pendiente {
@@ -23,4 +24,5 @@ export interface Pendiente {
   fecha_limite: string | null; // Formato YYYY-MM-DD
   completado: boolean;
   categoria_id: string | null;
+  user_id?: string;
 }
