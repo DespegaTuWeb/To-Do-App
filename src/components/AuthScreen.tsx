@@ -92,14 +92,13 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         {/* Header/Logo */}
         <div className="flex flex-col items-center text-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/10 mb-4 animate-check-pop">
-            <span className="font-extrabold text-2xl tracking-tighter">O</span>
-            <span className="font-semibold text-sm tracking-tighter -ml-1 text-indigo-200">S</span>
+            <span className="font-extrabold text-2xl tracking-tighter">K</span>
           </div>
           <h2 className="text-2xl font-extrabold text-gradient-luxury tracking-tight mb-1">
             {isSignUp ? 'Crea tu Cuenta Luxury' : 'Accede a tu Workspace'}
           </h2>
           <p className="text-xs text-slate-400 font-medium tracking-wide uppercase">
-            Personal Task OS
+            Keago
           </p>
         </div>
 

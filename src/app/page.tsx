@@ -93,7 +93,7 @@ export default function Home() {
       return;
     }
 
-    let text = `# Mis Ideas y Tareas - Personal Task OS\n\n`;
+    let text = `# Mis Ideas y Tareas - Keago\n\n`;
 
     // Categoría activa o todas
     const targetCategoryId = activeCategoryId;
@@ -854,22 +854,17 @@ export default function Home() {
 
   return (
     <div className="flex-1 w-full max-w-3xl mx-auto flex flex-col px-4 md:px-8 py-8 md:py-16 gap-8">
-      {/* HEADER: Título y Selector de Vista */}
       <header className="flex items-center justify-between gap-4">
-        <div className="flex flex-col">
-          <h1 className="text-xl font-extrabold tracking-tight text-gradient-luxury">Personal Task OS</h1>
-          {totalCount > 0 && (
-            <p className="text-[10px] text-slate-400 font-semibold tracking-wide mt-0.5">
-              {completionRate}% completado • {completedCount}/{totalCount} tareas
-            </p>
-          )}
+        {/* Logo "KEAGO" */}
+        <div className="px-3 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/10 w-fit flex-shrink-0 animate-check-pop">
+          <span className="font-extrabold text-base tracking-tighter">KEAGO</span>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Botón Exportar para Gemini */}
           <button
             onClick={handleExportToClipboard}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-smooth cursor-pointer glass-panel border-white/5 hover:text-white glass-panel-hover ${
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-smooth cursor-pointer glass-panel border-white/5 hover:text-slate-900 dark:hover:text-slate-100 glass-panel-hover ${
               copied
                 ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'
                 : 'text-slate-400'
@@ -1094,6 +1089,24 @@ export default function Home() {
           }}
           onCancel={() => setDeletingCategoryId(null)}
         />
+      )}
+
+      {/* Barra de progreso flotante abajo */}
+      {totalCount > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 glass-panel px-4 py-2.5 rounded-full shadow-lg border border-white/10 flex items-center gap-3 backdrop-blur-md animate-fade-in max-w-sm w-[90%] md:w-auto">
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+            {completionRate}% completado
+          </span>
+          <div className="w-24 md:w-32 h-2 bg-slate-200 dark:bg-slate-700/60 rounded-full overflow-hidden flex-shrink-0">
+            <div 
+              className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500 ease-out rounded-full"
+              style={{ width: `${completionRate}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+            {completedCount}/{totalCount}
+          </span>
+        </div>
       )}
     </div>
   );

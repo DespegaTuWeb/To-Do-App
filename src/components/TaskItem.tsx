@@ -15,7 +15,7 @@ interface TaskItemProps {
   onDelete: (id: string) => Promise<void>;
   onUpdate: (id: string, updates: Partial<Pendiente>) => Promise<void>;
   onOpenDetail?: (task: Pendiente) => void;
-  onDragReadyStateChange?: (ready: boolean) => void;
+  onDragDisableChange?: (disabled: boolean) => void;
 }
 
 export default function TaskItem({
@@ -26,7 +26,7 @@ export default function TaskItem({
   onDelete,
   onUpdate,
   onOpenDetail,
-  onDragReadyStateChange,
+  onDragDisableChange,
 }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.titulo);
@@ -35,6 +35,7 @@ export default function TaskItem({
   const [isExpanded, setIsExpanded] = useState(false);
   const [descText, setDescText] = useState(task.nota || '');
   const editInputRef = useRef<HTMLInputElement>(null);
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
 
   // Sincronizar descText si la nota cambia externamente
   useEffect(() => {
@@ -90,12 +91,30 @@ export default function TaskItem({
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
+    // Si hay texto seleccionado en la pantalla, ignorar el clic para evitar colapsar la tarjeta
+    const selection = window.getSelection()?.toString();
+    if (selection) return;
+
+    const startTarget = mouseDownTargetRef.current as HTMLElement | null;
+    const endTarget = e.target as HTMLElement;
+
+    // Si el clic empezó en un input, textarea o botón, ignorar
     if (
-      target.closest('button') || 
-      target.closest('input') || 
-      target.closest('textarea') ||
-      target.closest('.glass-panel-hover button') ||
+      startTarget && (
+        startTarget.closest('button') ||
+        startTarget.closest('input') ||
+        startTarget.closest('textarea') ||
+        startTarget.closest('.glass-panel-hover button')
+      )
+    ) {
+      return;
+    }
+
+    if (
+      endTarget.closest('button') || 
+      endTarget.closest('input') || 
+      endTarget.closest('textarea') ||
+      endTarget.closest('.glass-panel-hover button') ||
       isEditing
     ) {
       return;
@@ -127,6 +146,9 @@ export default function TaskItem({
   return (
     <div
       onClick={handleCardClick}
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target;
+      }}
       className={`glass-panel glass-panel-hover rounded-xl p-2.5 flex flex-col gap-2 transition-smooth border-l-3 relative cursor-pointer group ${
         task.completado ? 'opacity-50' : 'opacity-100'
       }`}
@@ -148,13 +170,7 @@ export default function TaskItem({
       <div className="flex items-center justify-between gap-3 w-full">
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           {!isEditing && (
-            <GripVertical 
-              onMouseDown={() => onDragReadyStateChange?.(true)}
-              onMouseUp={() => onDragReadyStateChange?.(false)}
-              onTouchStart={() => onDragReadyStateChange?.(true)}
-              onTouchEnd={() => onDragReadyStateChange?.(false)}
-              className="w-3.5 h-3.5 text-luxury-secondary opacity-25 group-hover:opacity-75 flex-shrink-0 cursor-grab active:cursor-grabbing transition-smooth" 
-            />
+            <GripVertical className="w-3.5 h-3.5 text-luxury-secondary opacity-25 group-hover:opacity-75 flex-shrink-0 cursor-grab active:cursor-grabbing transition-smooth" />
           )}
 
           {/* Checkbox reactivo */}
@@ -181,6 +197,10 @@ export default function TaskItem({
                   placeholder="Título de la tarea"
                   draggable={false}
                   onDragStart={(e) => e.stopPropagation()}
+                  onFocus={() => onDragDisableChange?.(true)}
+                  onBlur={() => onDragDisableChange?.(false)}
+                  onMouseEnter={() => onDragDisableChange?.(true)}
+                  onMouseLeave={() => onDragDisableChange?.(false)}
                   className="bg-transparent text-xs md:text-sm font-bold text-luxury-primary focus:outline-none border-b border-indigo-500/20 w-full py-0.5"
                 />
                 <input
@@ -190,6 +210,10 @@ export default function TaskItem({
                   placeholder="Descripción (Ctrl+Enter para guardar)"
                   draggable={false}
                   onDragStart={(e) => e.stopPropagation()}
+                  onFocus={() => onDragDisableChange?.(true)}
+                  onBlur={() => onDragDisableChange?.(false)}
+                  onMouseEnter={() => onDragDisableChange?.(true)}
+                  onMouseLeave={() => onDragDisableChange?.(false)}
                   className="bg-transparent text-xs text-luxury-secondary focus:outline-none border-b border-indigo-500/5 w-full py-0.5 placeholder:text-slate-500 font-normal"
                 />
               </div>
@@ -310,7 +334,13 @@ export default function TaskItem({
             <textarea
               value={descText}
               onChange={(e) => setDescText(e.target.value)}
-              onBlur={handleSaveDesc}
+              onBlur={() => {
+                handleSaveDesc();
+                onDragDisableChange?.(false);
+              }}
+              onFocus={() => onDragDisableChange?.(true)}
+              onMouseEnter={() => onDragDisableChange?.(true)}
+              onMouseLeave={() => onDragDisableChange?.(false)}
               placeholder="Añadir una descripción..."
               draggable={false}
               onDragStart={(e) => e.stopPropagation()}
@@ -335,15 +365,6 @@ export default function TaskItem({
             </div>
             
             <div className="flex items-center gap-1.5">
-              {/* Botón de conversión a subcategoría */}
-              {!task.grupo_nombre && (
-                <button
-                  onClick={handleConvertToSubcategory}
-                  className="px-2.5 py-1.5 rounded-lg hover:bg-emerald-500/10 text-emerald-400 font-bold transition-smooth text-[10px] uppercase tracking-wide cursor-pointer border border-emerald-500/10"
-                >
-                  Subcategoría
-                </button>
-              )}
               {/* Botón Eliminar */}
               <button
                 onClick={(e) => {

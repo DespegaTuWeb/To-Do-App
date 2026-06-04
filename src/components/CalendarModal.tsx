@@ -124,8 +124,11 @@ export default function CalendarModal({
   // Esto previene fallas de contexto CSS (ej. transforms) y herencias de eventos de arrastre.
   return createPortal(
     <div 
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md transition-opacity duration-300 animate-fade-in p-4"
-      onClick={onClose}
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-[3px] transition-opacity duration-300 animate-fade-in p-4"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
       onMouseDown={(e) => e.stopPropagation()} // Prevenir eventos de drag
     >
       <div 

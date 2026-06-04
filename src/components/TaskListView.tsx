@@ -52,7 +52,7 @@ export default function TaskListView({
   const [showCompleted, setShowCompleted] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
-  const [isDragReady, setIsDragReady] = useState<string | null>(null);
+  const [disabledDragTaskId, setDisabledDragTaskId] = useState<string | null>(null);
   const [revertingGroupName, setRevertingGroupName] = useState<string | null>(null);
   const todayStr = getLocalDateString(0);
 
@@ -300,13 +300,10 @@ export default function TaskListView({
                       return (
                         <div
                           key={task.id}
-                          draggable={isDragReady === task.id}
+                          draggable={disabledDragTaskId !== task.id}
                           onDragStart={(e) => handleDragStart(e, task.id)}
                           onDragOver={(e) => handleDragOver(e, task.id)}
-                          onDragEnd={() => {
-                            handleDragEnd();
-                            setIsDragReady(null);
-                          }}
+                          onDragEnd={handleDragEnd}
                           className={`transition-all duration-200 ${
                             isDragging ? 'opacity-20 scale-[0.98]' : 'opacity-100'
                           }`}
@@ -318,12 +315,8 @@ export default function TaskListView({
                             onDelete={onDeleteTask}
                             onUpdate={onUpdateTask}
                             onOpenDetail={onOpenDetail}
-                            onDragReadyStateChange={(ready) => {
-                              if (ready) {
-                                setIsDragReady(task.id);
-                              } else {
-                                setIsDragReady(null);
-                              }
+                            onDragDisableChange={(disabled) => {
+                              setDisabledDragTaskId(disabled ? task.id : null);
                             }}
                           />
                         </div>

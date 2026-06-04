@@ -8,10 +8,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Personal Task OS",
+  title: "Keago",
   description: "Un sistema operativo minimalista y ultra-rápido para gestionar tus pendientes en tiempo real.",
   keywords: ["task manager", "todo", "productivity", "minimalist", "supabase", "nextjs"],
-  authors: [{ name: "Personal Task OS" }],
+  authors: [{ name: "Keago" }],
 };
 
 export const viewport: Viewport = {
