@@ -652,9 +652,18 @@ export default function Home() {
 
     const previousTasks = [...tasks];
 
+    // Detectar si la tarea se está convirtiendo a grupo/subcategoría
+    const isConvertingToGroup = !targetTask.es_grupo && updates.es_grupo === true;
+    const hasDescription = !!targetTask.nota;
+
     // Detectar si el elemento que se actualiza es un grupo y si cambia su nombre o color
     const isGroupRename = targetTask.es_grupo && updates.titulo && updates.titulo !== targetTask.titulo;
     const isGroupColorChange = targetTask.es_grupo && updates.grupo_color && updates.grupo_color !== targetTask.grupo_color;
+
+    // Si se convierte a grupo y tiene descripción, limpiamos la nota de la cabecera
+    if (isConvertingToGroup && hasDescription) {
+      updates.nota = null;
+    }
 
     let updatedTasks = tasks.map((t) => (t.id === id ? { ...t, ...updates } : t));
 
@@ -677,9 +686,29 @@ export default function Home() {
       });
     }
 
+    // Si se está convirtiendo a grupo y tiene descripción, agregar la descripción como tarea hija optimista
+    let newTaskId: string | null = null;
+    if (isConvertingToGroup && hasDescription && targetTask.nota) {
+      newTaskId = generateUUID();
+      const newTask: Pendiente = {
+        id: newTaskId,
+        created_at: new Date().toISOString(),
+        titulo: targetTask.nota,
+        nota: null,
+        fecha_limite: null,
+        completado: false,
+        categoria_id: targetTask.categoria_id,
+        user_id: user.id,
+        grupo_nombre: targetTask.titulo,
+        grupo_color: updates.grupo_color || '#8b5cf6'
+      };
+      updatedTasks = [newTask, ...updatedTasks];
+    }
+
     setTasks(updatedTasks);
 
     try {
+      // 1. Actualizar la tarea original (que pasa a ser grupo)
       const { error } = await supabase
         .from('pendientes')
         .update(updates)
@@ -688,7 +717,24 @@ export default function Home() {
 
       if (error) throw error;
 
-      // Si es un grupo y cambió el nombre o el color, propagar el cambio en cascada en la BD
+      // 2. Si se convirtió y tenía descripción, insertar la nueva tarea hija en Supabase
+      if (isConvertingToGroup && hasDescription && targetTask.nota && newTaskId) {
+        const { error: insertError } = await supabase
+          .from('pendientes')
+          .insert([{
+            id: newTaskId,
+            titulo: targetTask.nota,
+            categoria_id: targetTask.categoria_id,
+            grupo_nombre: targetTask.titulo,
+            grupo_color: updates.grupo_color || '#8b5cf6',
+            user_id: user.id,
+            completado: false
+          }]);
+
+        if (insertError) throw insertError;
+      }
+
+      // 3. Si es un grupo y cambió el nombre o el color, propagar el cambio en cascada en la BD
       if (isGroupRename || isGroupColorChange) {
         const oldGroupName = targetTask.grupo_nombre || targetTask.titulo;
         const newGroupName = updates.titulo || oldGroupName;
