@@ -218,6 +218,25 @@ export default function TaskListView({
     }
   }, [groupDefinitions, draggedGroupTaskDefId]);
 
+  // Escuchar eventos globales de arrastre en window para asegurar que se limpie el estado
+  // incluso si el navegador cancela o no dispara el dragend del nodo original (bug común de HTML5)
+  React.useEffect(() => {
+    const handleGlobalDragEnd = () => {
+      setDraggedTaskId(null);
+      setDraggedGroupTaskDefId(null);
+    };
+
+    window.addEventListener('dragend', handleGlobalDragEnd);
+    window.addEventListener('drop', handleGlobalDragEnd);
+    window.addEventListener('mouseup', handleGlobalDragEnd); // Respaldo para móvil/mouse
+
+    return () => {
+      window.removeEventListener('dragend', handleGlobalDragEnd);
+      window.removeEventListener('drop', handleGlobalDragEnd);
+      window.removeEventListener('mouseup', handleGlobalDragEnd);
+    };
+  }, []);
+
   // Handler para reordenar las subcategorías (arrastrando una sobre otra)
   const handleDragOverGroupHeader = (e: React.DragEvent, targetGroupName: string) => {
     e.preventDefault();
