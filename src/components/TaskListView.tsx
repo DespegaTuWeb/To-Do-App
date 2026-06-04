@@ -198,6 +198,26 @@ export default function TaskListView({
     return def?.grupo_color || '#8b5cf6';
   };
 
+  // Limpiar el estado de arrastre si cambia la categoría activa o si los elementos cambian/se mueven
+  React.useEffect(() => {
+    setDraggedTaskId(null);
+    setDraggedGroupTaskDefId(null);
+  }, [activeCategoryId]);
+
+  // Si la tarea arrastrada ya no está en la lista de pendientes (ej. se movió de categoría o se completó), limpiar el arrastre
+  React.useEffect(() => {
+    if (draggedTaskId && !pendingTasks.some(t => t.id === draggedTaskId)) {
+      setDraggedTaskId(null);
+    }
+  }, [pendingTasks, draggedTaskId]);
+
+  // Si el grupo arrastrado ya no está en las definiciones (ej. se borró o se convirtió), limpiar el arrastre
+  React.useEffect(() => {
+    if (draggedGroupTaskDefId && !groupDefinitions.some(g => g.id === draggedGroupTaskDefId)) {
+      setDraggedGroupTaskDefId(null);
+    }
+  }, [groupDefinitions, draggedGroupTaskDefId]);
+
   // Handler para reordenar las subcategorías (arrastrando una sobre otra)
   const handleDragOverGroupHeader = (e: React.DragEvent, targetGroupName: string) => {
     e.preventDefault();
