@@ -53,6 +53,7 @@ export default function TaskListView({
 }: TaskListViewProps) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [draggedGroupTaskDefId, setDraggedGroupTaskDefId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [disabledDragTaskId, setDisabledDragTaskId] = useState<string | null>(null);
   const [revertingGroupName, setRevertingGroupName] = useState<string | null>(null);
@@ -110,6 +111,7 @@ export default function TaskListView({
 
   const handleDragEnd = () => {
     setDraggedTaskId(null);
+    setDraggedGroupTaskDefId(null);
   };
 
   const handleDragOverGroup = (e: React.DragEvent) => {
@@ -118,6 +120,9 @@ export default function TaskListView({
 
   const handleDropOnGroup = async (e: React.DragEvent, targetGroupName: string) => {
     e.preventDefault();
+    // Si estamos arrastrando una subcategoría (grupo), no procesar como asignación de tarea
+    if (draggedGroupTaskDefId) return;
+
     if (!draggedTaskId) return;
 
     const taskToUpdate = tasks.find(t => t.id === draggedTaskId);
@@ -127,8 +132,6 @@ export default function TaskListView({
     }
 
     const currentGroupName = taskToUpdate.grupo_nombre || 'General';
-    
-    // Limpiar inmediatamente el id arrastrado para quitar la opacidad en el frontend
     setDraggedTaskId(null);
 
     if (currentGroupName === targetGroupName) return;
@@ -149,8 +152,6 @@ export default function TaskListView({
 
   const handleGroupHeaderClick = (groupName: string) => {
     const isCurrentlyCollapsed = !!collapsedGroups[groupName];
-    
-    // Toggle colapsar
     setCollapsedGroups(prev => ({
       ...prev,
       [groupName]: !prev[groupName]
@@ -158,10 +159,8 @@ export default function TaskListView({
     
     if (onSelectGroup) {
       if (isCurrentlyCollapsed) {
-        // Se va a expandir -> se vuelve el grupo activo
         onSelectGroup(groupName === 'General' ? null : groupName, getGroupColor(groupName));
       } else {
-        // Se va a colapsar -> deseleccionar si era el activo
         onSelectGroup(null, null);
       }
     }
@@ -174,12 +173,10 @@ export default function TaskListView({
   const groupedTasks: Record<string, Pendiente[]> = {};
   groupedTasks['General'] = [];
   
-  // Inicializar subcategorías definidas
   groupDefinitions.forEach(g => {
     groupedTasks[g.titulo] = [];
   });
 
-  // Agrupar tareas normales (es_grupo = false)
   const normalPendingTasks = pendingTasks.filter(t => t.es_grupo !== true);
   normalPendingTasks.forEach(task => {
     const gName = task.grupo_nombre;
@@ -190,7 +187,6 @@ export default function TaskListView({
     }
   });
 
-  // Mostrar General (si tiene tareas) y las subcategorías vacías o con tareas
   const groupNames = ['General', ...groupDefinitions.map(g => g.titulo)].filter(name => {
     if (name === 'General') return groupedTasks['General'].length > 0;
     return true;
@@ -200,6 +196,25 @@ export default function TaskListView({
     if (groupName === 'General') return '#64748b';
     const def = groupDefinitions.find(g => g.titulo === groupName);
     return def?.grupo_color || '#8b5cf6';
+  };
+
+  // Handler para reordenar las subcategorías (arrastrando una sobre otra)
+  const handleDragOverGroupHeader = (e: React.DragEvent, targetGroupName: string) => {
+    e.preventDefault();
+    if (!draggedGroupTaskDefId || targetGroupName === 'General') return;
+
+    const targetGroupDef = groupDefinitions.find(g => g.titulo === targetGroupName);
+    if (!targetGroupDef || targetGroupDef.id === draggedGroupTaskDefId) return;
+
+    const draggedIdx = tasks.findIndex((t) => t.id === draggedGroupTaskDefId);
+    const targetIdx = tasks.findIndex((t) => t.id === targetGroupDef.id);
+
+    if (draggedIdx !== -1 && targetIdx !== -1) {
+      const reordered = [...tasks];
+      const [draggedItem] = reordered.splice(draggedIdx, 1);
+      reordered.splice(targetIdx, 0, draggedItem);
+      onReorderTasks(reordered);
+    }
   };
 
   return (
@@ -213,6 +228,9 @@ export default function TaskListView({
             const isCollapsed = !!collapsedGroups[groupName];
             const groupColor = getGroupColor(groupName);
 
+            const groupDef = groupDefinitions.find(g => g.titulo === groupName);
+            const isDraggingGroup = draggedGroupTaskDefId && groupDef && draggedGroupTaskDefId === groupDef.id;
+
             return (
               <div
                 key={groupName}
@@ -222,23 +240,27 @@ export default function TaskListView({
                   isActive
                     ? 'bg-indigo-600/5 border-indigo-500/30 shadow-lg shadow-indigo-500/5'
                     : 'bg-white/5 border-white/10'
-                }`}
+                } ${isDraggingGroup ? 'opacity-25 scale-[0.98]' : 'opacity-100'}`}
               >
                 {/* Cabecera del Grupo (Acordeón) y Zona de Arrastre para Subcategoría */}
                 <div 
                   draggable={groupName !== 'General'}
                   onDragStart={(e) => {
                     if (groupName === 'General') return;
-                    const groupDefTask = groupDefinitions.find(g => g.titulo === groupName);
-                    if (groupDefTask) {
-                      e.dataTransfer.setData('task-id', groupDefTask.id);
+                    if (groupDef) {
+                      // Para arrastrar a pestañas
+                      e.dataTransfer.setData('task-id', groupDef.id);
                       e.dataTransfer.effectAllowed = 'move';
+                      // Para reordenar localmente
+                      setDraggedGroupTaskDefId(groupDef.id);
                     }
                   }}
+                  onDragOver={(e) => handleDragOverGroupHeader(e, groupName)}
+                  onDragEnd={handleDragEnd}
                   className={`flex items-center justify-between gap-2 border-b border-white/5 pb-1.5 transition-colors ${
                     groupName !== 'General' ? 'cursor-grab active:cursor-grabbing hover:bg-white/[0.02] rounded px-1 -mx-1' : ''
                   }`}
-                  title={groupName !== 'General' ? 'Mantén presionado y arrastra para mover toda esta subcategoría a otra pestaña' : undefined}
+                  title={groupName !== 'General' ? 'Mantén presionado y arrastra para reordenar o mover a otra pestaña' : undefined}
                 >
                   <button
                     onClick={() => handleGroupHeaderClick(groupName)}

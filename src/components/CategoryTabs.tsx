@@ -15,6 +15,7 @@ interface CategoryTabsProps {
   onDeleteCategory: (id: string) => Promise<void>;
   onReorderCategories: (orderedCategories: Categoria[]) => void;
   onDropTaskOrGroup?: (taskId: string, targetCategoryId: string | null) => Promise<void>;
+  onConvertToSubcategory?: (id: string) => void;
 }
 
 export default function CategoryTabs({
@@ -26,6 +27,7 @@ export default function CategoryTabs({
   onDeleteCategory,
   onReorderCategories,
   onDropTaskOrGroup,
+  onConvertToSubcategory,
   sharedCategoryIds = [],
 }: CategoryTabsProps) {
   // Estado para la creación inline de categoría
@@ -340,6 +342,7 @@ export default function CategoryTabs({
           onClose={() => setContextMenu(null)}
           onRename={() => setRenamingId(contextMenu.categoryId)}
           onDelete={() => onDeleteCategory(contextMenu.categoryId)}
+          onConvertToSubcategory={onConvertToSubcategory ? () => onConvertToSubcategory(contextMenu.categoryId) : undefined}
         />
       )}
     </div>

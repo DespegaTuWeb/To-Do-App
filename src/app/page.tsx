@@ -13,6 +13,7 @@ import AuthScreen from '../components/AuthScreen';
 import ConfirmModal from '../components/ConfirmModal';
 import ShareModal from '../components/ShareModal';
 import { User } from '@supabase/supabase-js';
+import 'mobile-drag-drop/default.css';
 
 // Paleta de colores premium para nuevas categorías
 const PREMIUM_COLORS = [
@@ -92,6 +93,8 @@ export default function Home() {
   const [categories, setCategories] = useState<Categoria[]>([]);
   const [tasks, setTasks] = useState<Pendiente[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [convertingCategoryId, setConvertingCategoryId] = useState<string | null>(null);
+  const [targetParentCategoryId, setTargetParentCategoryId] = useState<string>('inbox');
   const [viewMode, setViewMode] = useState<'list' | 'timeline' | 'visual'>('list');
   const [isLoading, setIsLoading] = useState(true);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -1018,6 +1021,71 @@ export default function Home() {
     }
   };
 
+  // Convertir categoría en una subcategoría de otra
+  const handleConvertToSubcategory = async (sourceId: string, targetParentId: string | null) => {
+    if (!user) return;
+    const sourceCat = categories.find(c => c.id === sourceId);
+    if (!sourceCat) return;
+
+    try {
+      const sourceColor = sourceCat.color || '#8b5cf6';
+      const sourceName = sourceCat.nombre;
+
+      // 1. Crear la tarea definidora de grupo en la categoría destino
+      const groupDefTaskId = generateUUID();
+      const { error: defError } = await supabase
+        .from('pendientes')
+        .insert([{
+          id: groupDefTaskId,
+          titulo: sourceName,
+          es_grupo: true,
+          grupo_nombre: sourceName,
+          grupo_color: sourceColor,
+          categoria_id: targetParentId,
+          user_id: user.id,
+          completado: false
+        }]);
+
+      if (defError) throw defError;
+
+      // 2. Mover todos los pendientes de la categoría origen a la categoría destino y asignarles el grupo
+      const { error: moveTasksError } = await supabase
+        .from('pendientes')
+        .update({
+          categoria_id: targetParentId,
+          grupo_nombre: sourceName,
+          grupo_color: sourceColor
+        })
+        .eq('categoria_id', sourceId)
+        .eq('user_id', user.id);
+
+      if (moveTasksError) throw moveTasksError;
+
+      // 3. Eliminar la categoría origen
+      const { error: deleteCatError } = await supabase
+        .from('categorias')
+        .delete()
+        .eq('id', sourceId)
+        .eq('user_id', user.id);
+
+      if (deleteCatError) throw deleteCatError;
+
+      // 4. Actualizar localmente el estado de categorías y tareas
+      setCategories(prev => prev.filter(c => c.id !== sourceId));
+      await loadData(true);
+
+      setToastMessage(`Categoría "${sourceName}" convertida a subcategoría.`);
+      
+      // Si la categoría activa era la origen, ir a la destino
+      if (activeCategoryId === sourceId) {
+        setActiveCategoryId(targetParentId);
+      }
+    } catch (err) {
+      console.error('Error al convertir categoría a subcategoría:', err);
+      alert('No se pudo convertir la categoría a subcategoría.');
+    }
+  };
+
   // 8. REORDENAR CATEGORÍAS (Local y Persistente)
   const handleReorderCategories = (orderedCats: Categoria[]) => {
     setCategories(orderedCats);
@@ -1200,6 +1268,16 @@ export default function Home() {
                 onDeleteCategory={handleDeleteCategory}
                 onReorderCategories={handleReorderCategories}
                 onDropTaskOrGroup={handleMoveTaskOrGroup}
+                onConvertToSubcategory={(id) => {
+                  setConvertingCategoryId(id);
+                  // Seleccionar por defecto la primera categoría que no sea la que se va a convertir
+                  const otherCats = categories.filter(c => c.id !== id);
+                  if (otherCats.length > 0) {
+                    setTargetParentCategoryId(otherCats[0].id);
+                  } else {
+                    setTargetParentCategoryId('inbox');
+                  }
+                }}
               />
             </section>
           )}
@@ -1333,6 +1411,68 @@ export default function Home() {
           }}
           onCancel={() => setDeletingCategoryId(null)}
         />
+      )}
+
+      {/* Modal para convertir categoría en subcategoría */}
+      {convertingCategoryId && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setConvertingCategoryId(null)}
+        >
+          <div 
+            className="w-full max-w-sm glass-panel rounded-3xl p-6 shadow-2xl animate-check-pop bg-[var(--c-page-bg)]/95 text-[var(--c-text-primary)] border border-[var(--c-border)] flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-1">
+              <h3 className="text-base font-bold text-luxury-primary">Convertir a Subcategoría</h3>
+              <p className="text-xs text-[var(--c-text-secondary)]">
+                La categoría "{categories.find(c => c.id === convertingCategoryId)?.nombre}" se convertirá en un grupo visual (subcategoría). Sus tareas se conservarán.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] font-bold text-[var(--c-text-muted)] uppercase tracking-wider pl-1">
+                Selecciona la categoría de destino:
+              </label>
+              <select
+                value={targetParentCategoryId}
+                onChange={(e) => setTargetParentCategoryId(e.target.value)}
+                className="w-full bg-[var(--c-input-bg)] border border-[var(--c-input-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--c-text-primary)] focus:outline-none focus:border-indigo-500/50 transition-smooth font-medium cursor-pointer"
+              >
+                <option value="inbox" className="bg-slate-900 text-white dark:bg-slate-950 dark:text-slate-100">
+                  Inbox / Hoy
+                </option>
+                {categories
+                  .filter((c) => c.id !== convertingCategoryId)
+                  .map((cat) => (
+                    <option key={cat.id} value={cat.id} className="bg-slate-900 text-white dark:bg-slate-950 dark:text-slate-100">
+                      {cat.nombre}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-2.5 mt-2">
+              <button
+                onClick={() => setConvertingCategoryId(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-luxury-secondary hover:text-luxury-primary hover:bg-white/5 transition-smooth cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const sourceId = convertingCategoryId;
+                  const targetId = targetParentCategoryId === 'inbox' ? null : targetParentCategoryId;
+                  setConvertingCategoryId(null);
+                  handleConvertToSubcategory(sourceId, targetId);
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-smooth shadow-md shadow-indigo-600/10 cursor-pointer"
+              >
+                Convertir
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Barra de progreso flotante abajo */}

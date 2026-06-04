@@ -1,7 +1,5 @@
-'use client';
-
 import React, { useEffect, useRef } from 'react';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, FolderPlus } from 'lucide-react';
 
 interface ContextMenuProps {
   x: number;
@@ -9,6 +7,7 @@ interface ContextMenuProps {
   onClose: () => void;
   onRename: () => void;
   onDelete: () => void;
+  onConvertToSubcategory?: () => void;
   categoryName: string;
 }
 
@@ -18,6 +17,7 @@ export default function ContextMenu({
   onClose,
   onRename,
   onDelete,
+  onConvertToSubcategory,
   categoryName,
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -42,8 +42,8 @@ export default function ContextMenu({
   let adjustedY = y;
 
   if (typeof window !== 'undefined') {
-    const menuWidth = 160; // aprox width
-    const menuHeight = 100; // aprox height
+    const menuWidth = 180; // aprox width
+    const menuHeight = 140; // aprox height
     if (x + menuWidth > window.innerWidth) {
       adjustedX = window.innerWidth - menuWidth - 8;
     }
@@ -56,7 +56,7 @@ export default function ContextMenu({
     <div
       ref={menuRef}
       style={{ top: `${adjustedY}px`, left: `${adjustedX}px` }}
-      className="fixed z-50 min-w-[160px] glass-panel rounded-lg shadow-2xl p-1 animate-check-pop"
+      className="fixed z-50 min-w-[180px] glass-panel rounded-lg shadow-2xl p-1 animate-check-pop"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-slate-400 border-b border-white/5 font-semibold">
@@ -67,17 +67,31 @@ export default function ContextMenu({
           onRename();
           onClose();
         }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-200 hover:bg-white/10 rounded-md transition-smooth text-left"
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-200 hover:bg-white/10 rounded-md transition-smooth text-left cursor-pointer"
       >
         <Edit2 className="w-3.5 h-3.5 text-blue-400" />
         Renombrar
       </button>
+
+      {onConvertToSubcategory && (
+        <button
+          onClick={() => {
+            onConvertToSubcategory();
+            onClose();
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-200 hover:bg-white/10 rounded-md transition-smooth text-left cursor-pointer"
+        >
+          <FolderPlus className="w-3.5 h-3.5 text-indigo-400" />
+          Convertir a Subcategoría
+        </button>
+      )}
+
       <button
         onClick={() => {
           onDelete();
           onClose();
         }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 rounded-md transition-smooth text-left font-medium"
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 rounded-md transition-smooth text-left font-medium cursor-pointer"
       >
         <Trash2 className="w-3.5 h-3.5" />
         Eliminar
