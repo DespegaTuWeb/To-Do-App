@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Sparkles, Folder, Plus, Undo2, ListTree, FolderPlus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Sparkles, Folder, Plus, Undo2, ListTree, FolderPlus, Edit3 } from 'lucide-react';
 import { Pendiente, Categoria } from '../lib/supabase';
 import { getLocalDateString } from '../lib/utils';
 import TaskItem from './TaskItem';
@@ -279,6 +279,20 @@ export default function TaskListView({
                   </button>
 
                   <div className="flex items-center gap-2">
+                    {/* Botón para editar subcategoría */}
+                    {groupName !== 'General' && groupDef && onOpenDetail && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenDetail(groupDef);
+                        }}
+                        className="p-1 text-slate-500 hover:text-indigo-400 hover:bg-white/5 rounded transition-smooth cursor-pointer"
+                        title="Editar detalles de la subcategoría"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
                     {/* Botón para promover subcategoría a Categoría principal */}
                     {groupName !== 'General' && onPromoteGroupToCategory && (
                       <button
@@ -323,6 +337,13 @@ export default function TaskListView({
                     )}
                   </div>
                 </div>
+
+                {/* Descripción de la subcategoría si existe y no está colapsado */}
+                {!isCollapsed && groupDef && groupDef.nota && (
+                  <p className="text-[11px] text-luxury-secondary/85 bg-white/[0.01] border border-white/5 rounded-lg px-3 py-2 ml-6 mr-2 -mt-1 mb-1 leading-relaxed font-normal italic">
+                    {groupDef.nota}
+                  </p>
+                )}
 
                 {/* Lista de tareas del grupo */}
                 <div

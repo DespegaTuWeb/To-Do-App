@@ -645,15 +645,39 @@ export default function Home() {
     }
   };
 
-  // 4. ACTUALIZAR TAREA - Renombrar (Optimista)
   const handleUpdateTask = async (id: string, updates: Partial<Pendiente>) => {
     if (!user) return;
+    const targetTask = tasks.find(t => t.id === id);
+    if (!targetTask) return;
+
     const previousTasks = [...tasks];
 
-    // Actualización optimista
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updates } : t))
-    );
+    // Detectar si el elemento que se actualiza es un grupo y si cambia su nombre o color
+    const isGroupRename = targetTask.es_grupo && updates.titulo && updates.titulo !== targetTask.titulo;
+    const isGroupColorChange = targetTask.es_grupo && updates.grupo_color && updates.grupo_color !== targetTask.grupo_color;
+
+    let updatedTasks = tasks.map((t) => (t.id === id ? { ...t, ...updates } : t));
+
+    if (isGroupRename || isGroupColorChange) {
+      const oldGroupName = targetTask.grupo_nombre || targetTask.titulo;
+      const newGroupName = updates.titulo || oldGroupName;
+      const newGroupColor = updates.grupo_color || targetTask.grupo_color;
+
+      // Sincronizar el campo grupo_nombre del propio objeto de definición
+      if (isGroupRename) {
+        updates.grupo_nombre = newGroupName;
+      }
+
+      // Propagar optimistamente a todos los pendientes hijos
+      updatedTasks = updatedTasks.map(t => {
+        if (t.grupo_nombre === oldGroupName) {
+          return { ...t, grupo_nombre: newGroupName, grupo_color: newGroupColor };
+        }
+        return t;
+      });
+    }
+
+    setTasks(updatedTasks);
 
     try {
       const { error } = await supabase
@@ -663,6 +687,24 @@ export default function Home() {
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      // Si es un grupo y cambió el nombre o el color, propagar el cambio en cascada en la BD
+      if (isGroupRename || isGroupColorChange) {
+        const oldGroupName = targetTask.grupo_nombre || targetTask.titulo;
+        const newGroupName = updates.titulo || oldGroupName;
+        const newGroupColor = updates.grupo_color || targetTask.grupo_color;
+
+        const { error: cascadeError } = await supabase
+          .from('pendientes')
+          .update({
+            grupo_nombre: newGroupName,
+            grupo_color: newGroupColor
+          })
+          .eq('grupo_nombre', oldGroupName)
+          .eq('user_id', user.id);
+
+        if (cascadeError) throw cascadeError;
+      }
     } catch (err) {
       console.error('Error actualizando tarea:', err);
       setTasks(previousTasks);
