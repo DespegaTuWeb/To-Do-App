@@ -62,6 +62,29 @@ const generateUUID = () => {
   });
 };
 
+// Helper seguro para acceder a localStorage en entornos restringidos (móviles, incognito)
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+    } catch (e) {
+      console.warn('LocalStorage no disponible:', e);
+    }
+    return null;
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch (e) {
+      console.warn('LocalStorage no disponible:', e);
+    }
+  }
+};
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const lastLoadedUserIdRef = useRef<string | null>(null);
@@ -201,10 +224,15 @@ export default function Home() {
 
   // Escuchar estado de autenticación
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setUser(session?.user ?? null);
+        setAuthLoading(false);
+      })
+      .catch((err) => {
+        console.error('Error al obtener sesión de Supabase:', err);
+        setAuthLoading(false);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -219,18 +247,26 @@ export default function Home() {
   // Inicializar polyfill de drag and drop en móviles/pantallas táctiles
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      import('mobile-drag-drop').then(({ polyfill }) => {
-        polyfill({
-          holdToDrag: 200, // 200ms para no entorpecer el scroll nativo en móvil
+      import('mobile-drag-drop')
+        .then(({ polyfill }) => {
+          try {
+            polyfill({
+              holdToDrag: 200, // 200ms para no entorpecer el scroll nativo en móvil
+            });
+          } catch (e) {
+            console.error('Error al iniciar polyfill de drag and drop:', e);
+          }
+        })
+        .catch((err) => {
+          console.error('Error al importar polyfill de drag and drop:', err);
         });
-      });
     }
   }, []);
 
   // Efecto para inicializar el tema
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' | null;
+      const savedTheme = safeLocalStorage.getItem('theme') as 'dark' | 'light' | null;
       if (savedTheme) {
         setTheme(savedTheme);
         if (savedTheme === 'light') {
@@ -254,7 +290,7 @@ export default function Home() {
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
-    localStorage.setItem('theme', nextTheme);
+    safeLocalStorage.setItem('theme', nextTheme);
     if (nextTheme === 'light') {
       document.documentElement.classList.add('light');
     } else {
@@ -326,7 +362,7 @@ export default function Home() {
       );
 
       if (typeof window !== 'undefined') {
-        const storedOrder = localStorage.getItem(`category_order_${user.id}`);
+        const storedOrder = safeLocalStorage.getItem(`category_order_${user.id}`);
         if (storedOrder) {
           try {
             const ids = JSON.parse(storedOrder) as string[];
@@ -352,7 +388,7 @@ export default function Home() {
       });
 
       if (typeof window !== 'undefined') {
-        const storedTaskOrder = localStorage.getItem(`task_order_${user.id}`);
+        const storedTaskOrder = safeLocalStorage.getItem(`task_order_${user.id}`);
         if (storedTaskOrder) {
           try {
             const ids = JSON.parse(storedTaskOrder) as string[];
@@ -987,7 +1023,7 @@ export default function Home() {
     setCategories(orderedCats);
     if (typeof window !== 'undefined' && user) {
       const ids = orderedCats.map((c) => c.id);
-      localStorage.setItem(`category_order_${user.id}`, JSON.stringify(ids));
+      safeLocalStorage.setItem(`category_order_${user.id}`, JSON.stringify(ids));
     }
   };
 
@@ -996,7 +1032,7 @@ export default function Home() {
     setTasks(orderedTasks);
     if (typeof window !== 'undefined' && user) {
       const ids = orderedTasks.map((t) => t.id);
-      localStorage.setItem(`task_order_${user.id}`, JSON.stringify(ids));
+      safeLocalStorage.setItem(`task_order_${user.id}`, JSON.stringify(ids));
     }
   };
 
