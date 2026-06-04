@@ -6,6 +6,7 @@ import { X, Calendar, Edit3, Trash2, Tag, FileText, Check, Undo } from 'lucide-r
 import { Pendiente, Categoria } from '../lib/supabase';
 import { formatSpanishDate } from '../lib/utils';
 import CalendarModal from './CalendarModal';
+import ConfirmModal from './ConfirmModal';
 
 interface TaskDetailModalProps {
   isOpen: boolean;
@@ -31,11 +32,16 @@ export default function TaskDetailModal({
   const [editCatId, setEditCatId] = useState<string | null>(task.categoria_id);
   const [showCalendar, setShowCalendar] = useState(false);
 
+  const [editGrupoNombre, setEditGrupoNombre] = useState(task.grupo_nombre || '');
+  const [editGrupoColor, setEditGrupoColor] = useState(task.grupo_color || '#8b5cf6');
+
   // Sincronizar estados locales si la tarea cambia externamente
   useEffect(() => {
     setEditTitle(task.titulo);
     setEditNota(task.nota || '');
     setEditCatId(task.categoria_id);
+    setEditGrupoNombre(task.grupo_nombre || '');
+    setEditGrupoColor(task.grupo_color || '#8b5cf6');
   }, [task]);
 
   useEffect(() => {
@@ -68,6 +74,8 @@ export default function TaskDetailModal({
       titulo: trimmedTitle,
       nota: editNota.trim() || null,
       categoria_id: editCatId,
+      grupo_nombre: editGrupoNombre.trim() || null,
+      grupo_color: editGrupoNombre.trim() ? editGrupoColor : null,
     });
     setIsEditing(false);
   };
@@ -76,14 +84,14 @@ export default function TaskDetailModal({
     setEditTitle(task.titulo);
     setEditNota(task.nota || '');
     setEditCatId(task.categoria_id);
+    setEditGrupoNombre(task.grupo_nombre || '');
+    setEditGrupoColor(task.grupo_color || '#8b5cf6');
     setIsEditing(false);
   };
 
   const handleDeleteClick = () => {
-    if (confirm('¿Eliminar esta tarea definitivamente?')) {
-      onDelete(task.id);
-      onClose();
-    }
+    onDelete(task.id);
+    onClose();
   };
 
   return createPortal(
@@ -98,16 +106,31 @@ export default function TaskDetailModal({
       >
         {/* Cabecera */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.01]">
-          <span 
-            className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border tracking-wider"
-            style={{ 
-              borderColor: `${categoryColor}30`, 
-              color: categoryColor,
-              backgroundColor: `${categoryColor}08`
-            }}
-          >
-            {categoryName}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span 
+              className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border tracking-wider"
+              style={{ 
+                borderColor: `${categoryColor}30`, 
+                color: categoryColor,
+                backgroundColor: `${categoryColor}08`
+              }}
+            >
+              {categoryName}
+            </span>
+            {task.grupo_nombre && (
+              <span 
+                className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border tracking-wider"
+                style={{ 
+                  borderColor: `${task.grupo_color || '#8b5cf6'}30`, 
+                  color: task.grupo_color || '#8b5cf6',
+                  backgroundColor: `${task.grupo_color || '#8b5cf6'}08`,
+                  boxShadow: `0 0 8px ${task.grupo_color || '#8b5cf6'}20`
+                }}
+              >
+                Grupo: {task.grupo_nombre}
+              </span>
+            )}
+          </div>
           <button 
             onClick={onClose}
             className="p-1 hover:bg-white/10 rounded-full transition-smooth text-luxury-secondary hover:text-luxury-primary cursor-pointer"
@@ -169,6 +192,32 @@ export default function TaskDetailModal({
                     </span>
                     <Calendar className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
                   </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-1">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-luxury-secondary uppercase">Grupo / Subcategoría</label>
+                  <input 
+                    type="text" 
+                    placeholder="General, Compras, etc."
+                    value={editGrupoNombre}
+                    onChange={(e) => setEditGrupoNombre(e.target.value)}
+                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs text-luxury-primary focus:ring-1 focus:ring-indigo-500/20"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-luxury-secondary uppercase">Color del Grupo</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={editGrupoColor}
+                      onChange={(e) => setEditGrupoColor(e.target.value)}
+                      className="w-10 h-10 rounded-xl border border-white/10 cursor-pointer bg-transparent p-1"
+                    />
+                    <span className="text-xs text-luxury-secondary font-mono">{editGrupoColor.toUpperCase()}</span>
+                  </div>
                 </div>
               </div>
             </div>

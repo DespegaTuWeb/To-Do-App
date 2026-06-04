@@ -25,4 +25,7 @@ export interface Pendiente {
   completado: boolean;
   categoria_id: string | null;
   user_id?: string;
+  grupo_nombre?: string | null;
+  grupo_color?: string | null;
+  es_grupo?: boolean;
 }

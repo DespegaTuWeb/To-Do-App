@@ -1,10 +1,23 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronRight, Sparkles, Folder, Plus, Undo2, ListTree } from 'lucide-react';
 import { Pendiente, Categoria } from '../lib/supabase';
 import { getLocalDateString } from '../lib/utils';
 import TaskItem from './TaskItem';
+
+const PREMIUM_GROUP_COLORS = [
+  '#3b82f6', // Azul Cobalto
+  '#10b981', // Esmeralda
+  '#f59e0b', // Ámbar
+  '#ec4899', // Rosa
+  '#8b5cf6', // Violeta
+  '#06b6d4', // Cian
+  '#f43f5e', // Rosa Coral
+  '#a855f7', // Púrpura
+  '#14b8a6', // Menta
+  '#f97316', // Naranja
+];
 
 interface TaskListViewProps {
   tasks: Pendiente[];
@@ -15,6 +28,10 @@ interface TaskListViewProps {
   onUpdateTask: (id: string, updates: Partial<Pendiente>) => Promise<void>;
   onReorderTasks: (orderedTasks: Pendiente[]) => void;
   onOpenDetail?: (task: Pendiente) => void;
+  onCreateTask?: (titulo: string, fechaLimite: string | null, grupoNombre?: string | null, grupoColor?: string | null) => Promise<void>;
+  activeGroupName?: string | null;
+  onSelectGroup?: (name: string | null, color: string | null) => void;
+  onConvertGroupToTask?: (groupName: string) => Promise<void>;
 }
 
 export default function TaskListView({
@@ -26,9 +43,14 @@ export default function TaskListView({
   onUpdateTask,
   onReorderTasks,
   onOpenDetail,
+  onCreateTask,
+  activeGroupName,
+  onSelectGroup,
+  onConvertGroupToTask,
 }: TaskListViewProps) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const todayStr = getLocalDateString(0);
 
   // Filtrado de tareas según la categoría activa
@@ -55,6 +77,7 @@ export default function TaskListView({
   // Drag and drop task handlers
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedTaskId(id);
+    e.dataTransfer.setData('task-id', id);
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -62,15 +85,21 @@ export default function TaskListView({
     e.preventDefault();
     if (!draggedTaskId || draggedTaskId === targetId) return;
 
-    // Encontrar índices en el array global original
-    const draggedIdx = tasks.findIndex((t) => t.id === draggedTaskId);
-    const targetIdx = tasks.findIndex((t) => t.id === targetId);
+    const targetTask = tasks.find((t) => t.id === targetId);
+    const draggedTask = tasks.find((t) => t.id === draggedTaskId);
+    if (!targetTask || !draggedTask) return;
 
-    if (draggedIdx !== -1 && targetIdx !== -1) {
-      const reordered = [...tasks];
-      const [draggedItem] = reordered.splice(draggedIdx, 1);
-      reordered.splice(targetIdx, 0, draggedItem);
-      onReorderTasks(reordered);
+    // Solo reordenar en la interfaz si ya están en el mismo grupo para evitar desmontar el nodo durante el arrastre
+    if (draggedTask.grupo_nombre === targetTask.grupo_nombre) {
+      const draggedIdx = tasks.findIndex((t) => t.id === draggedTaskId);
+      const targetIdx = tasks.findIndex((t) => t.id === targetId);
+
+      if (draggedIdx !== -1 && targetIdx !== -1) {
+        const reordered = [...tasks];
+        const [draggedItem] = reordered.splice(draggedIdx, 1);
+        reordered.splice(targetIdx, 0, draggedItem);
+        onReorderTasks(reordered);
+      }
     }
   };
 
@@ -78,34 +107,217 @@ export default function TaskListView({
     setDraggedTaskId(null);
   };
 
+  const handleDragOverGroup = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDropOnGroup = async (e: React.DragEvent, targetGroupName: string) => {
+    e.preventDefault();
+    if (!draggedTaskId) return;
+
+    const taskToUpdate = tasks.find(t => t.id === draggedTaskId);
+    if (!taskToUpdate) {
+      setDraggedTaskId(null);
+      return;
+    }
+
+    const currentGroupName = taskToUpdate.grupo_nombre || 'General';
+    
+    // Limpiar inmediatamente el id arrastrado para quitar la opacidad en el frontend
+    setDraggedTaskId(null);
+
+    if (currentGroupName === targetGroupName) return;
+
+    const newGroupName = targetGroupName === 'General' ? null : targetGroupName;
+    
+    let newGroupColor = null;
+    if (newGroupName) {
+      const existing = tasks.find(t => t.grupo_nombre === newGroupName && t.grupo_color);
+      newGroupColor = existing?.grupo_color || PREMIUM_GROUP_COLORS[Math.floor(Math.random() * PREMIUM_GROUP_COLORS.length)];
+    }
+
+    await onUpdateTask(taskToUpdate.id, {
+      grupo_nombre: newGroupName,
+      grupo_color: newGroupColor
+    });
+  };
+
+  const handleGroupHeaderClick = (groupName: string) => {
+    const isCurrentlyCollapsed = !!collapsedGroups[groupName];
+    
+    // Toggle colapsar
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [groupName]: !prev[groupName]
+    }));
+    
+    if (onSelectGroup) {
+      if (isCurrentlyCollapsed) {
+        // Se va a expandir -> se vuelve el grupo activo
+        onSelectGroup(groupName === 'General' ? null : groupName, getGroupColor(groupName));
+      } else {
+        // Se va a colapsar -> deseleccionar si era el activo
+        onSelectGroup(null, null);
+      }
+    }
+  };
+
+  // Agrupar tareas por grupo respetando las definiciones de subcategorías creadas
+  const groupDefinitions = pendingTasks.filter(t => t.es_grupo === true);
+  const activeGroupNames = new Set(groupDefinitions.map(t => t.titulo));
+
+  const groupedTasks: Record<string, Pendiente[]> = {};
+  groupedTasks['General'] = [];
+  
+  // Inicializar subcategorías definidas
+  groupDefinitions.forEach(g => {
+    groupedTasks[g.titulo] = [];
+  });
+
+  // Agrupar tareas normales (es_grupo = false)
+  const normalPendingTasks = pendingTasks.filter(t => t.es_grupo !== true);
+  normalPendingTasks.forEach(task => {
+    const gName = task.grupo_nombre;
+    if (gName && activeGroupNames.has(gName)) {
+      groupedTasks[gName].push(task);
+    } else {
+      groupedTasks['General'].push(task);
+    }
+  });
+
+  // Mostrar General (si tiene tareas) y las subcategorías vacías o con tareas
+  const groupNames = ['General', ...groupDefinitions.map(g => g.titulo)].filter(name => {
+    if (name === 'General') return groupedTasks['General'].length > 0;
+    return true;
+  });
+
+  const getGroupColor = (groupName: string) => {
+    if (groupName === 'General') return '#64748b';
+    const def = groupDefinitions.find(g => g.titulo === groupName);
+    return def?.grupo_color || '#8b5cf6';
+  };
+
   return (
     <div className="w-full flex flex-col gap-6 animate-check-pop">
-      {/* Lista de Tareas Activas (Pendientes) */}
-      <div className="flex flex-col gap-2">
+      {/* Lista de Tareas Activas (Pendientes) agrupadas */}
+      <div className="flex flex-col gap-4">
         {pendingTasks.length > 0 ? (
-          pendingTasks.map((task) => {
-            const { color } = getCategoryDetails(task.categoria_id);
-            const isDragging = draggedTaskId === task.id;
+          groupNames.map((groupName) => {
+            const isActive = (groupName === 'General' && activeGroupName === null) || (activeGroupName === groupName);
+            const groupTasks = groupedTasks[groupName];
+            const isCollapsed = !!collapsedGroups[groupName];
+            const groupColor = getGroupColor(groupName);
 
             return (
               <div
-                key={task.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, task.id)}
-                onDragOver={(e) => handleDragOver(e, task.id)}
-                onDragEnd={handleDragEnd}
-                className={`transition-all duration-200 ${
-                  isDragging ? 'opacity-20 scale-[0.98]' : 'opacity-100'
+                key={groupName}
+                onDragOver={handleDragOverGroup}
+                onDrop={(e) => handleDropOnGroup(e, groupName)}
+                className={`backdrop-blur-xl border rounded-xl p-3 transition-all duration-300 flex flex-col gap-2.5 ${
+                  isActive
+                    ? 'bg-indigo-600/5 border-indigo-500/30 shadow-lg shadow-indigo-500/5'
+                    : 'bg-white/5 border-white/10'
                 }`}
               >
-                <TaskItem
-                  task={task}
-                  categoryColor={color}
-                  onToggle={onToggleTask}
-                  onDelete={onDeleteTask}
-                  onUpdate={onUpdateTask}
-                  onOpenDetail={onOpenDetail}
-                />
+                {/* Cabecera del Grupo (Acordeón) y Zona de Arrastre para Subcategoría */}
+                <div 
+                  draggable={groupName !== 'General'}
+                  onDragStart={(e) => {
+                    if (groupName === 'General') return;
+                    const groupDefTask = groupDefinitions.find(g => g.titulo === groupName);
+                    if (groupDefTask) {
+                      e.dataTransfer.setData('task-id', groupDefTask.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }
+                  }}
+                  className={`flex items-center justify-between gap-2 border-b border-white/5 pb-1.5 transition-colors ${
+                    groupName !== 'General' ? 'cursor-grab active:cursor-grabbing hover:bg-white/[0.02] rounded px-1 -mx-1' : ''
+                  }`}
+                  title={groupName !== 'General' ? 'Mantén presionado y arrastra para mover toda esta subcategoría a otra pestaña' : undefined}
+                >
+                  <button
+                    onClick={() => handleGroupHeaderClick(groupName)}
+                    className="flex items-center gap-2 text-xs font-bold text-luxury-primary hover:text-white transition-smooth cursor-pointer"
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${
+                        isCollapsed ? '-rotate-90' : 'rotate-0'
+                      }`}
+                    />
+                    <Folder className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>{groupName}</span>
+                    <span className="text-[10px] bg-white/10 text-slate-300 px-1.5 py-0.5 rounded-full font-medium">
+                      {groupTasks.length}
+                    </span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {/* Botón para convertir subcategoría de vuelta a tarea normal */}
+                    {groupName !== 'General' && onConvertGroupToTask && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConvertGroupToTask(groupName);
+                        }}
+                        className="p-1 text-slate-500 hover:text-rose-400 hover:bg-white/5 rounded transition-smooth cursor-pointer"
+                        title="Deshacer subcategoría (convertir a tarea)"
+                      >
+                        <Undo2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    {/* Indicador de Color Visual con Neon Glow */}
+                    {groupName !== 'General' && (
+                      <div
+                        className="w-2.5 h-2.5 rounded-full transition-all duration-300"
+                        style={{
+                          backgroundColor: groupColor,
+                          boxShadow: `0 0 8px ${groupColor}`,
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Lista de tareas del grupo */}
+                <div
+                  className={`flex flex-col gap-1.5 transition-all duration-300 overflow-hidden ${
+                    isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[5000px] opacity-100'
+                  }`}
+                >
+                  {groupTasks.length > 0 ? (
+                    groupTasks.map((task) => {
+                      const { color } = getCategoryDetails(task.categoria_id);
+                      const isDragging = draggedTaskId === task.id;
+
+                      return (
+                        <div
+                          key={task.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, task.id)}
+                          onDragOver={(e) => handleDragOver(e, task.id)}
+                          onDragEnd={handleDragEnd}
+                          className={`transition-all duration-200 ${
+                            isDragging ? 'opacity-20 scale-[0.98]' : 'opacity-100'
+                          }`}
+                        >
+                          <TaskItem
+                            task={task}
+                            categoryColor={color}
+                            onToggle={onToggleTask}
+                            onDelete={onDeleteTask}
+                            onUpdate={onUpdateTask}
+                            onOpenDetail={onOpenDetail}
+                          />
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-[10px] text-luxury-muted italic py-3 text-center border border-dashed border-white/5 rounded-xl">
+                      Subcategoría vacía. Escribe arriba o arrastra tareas aquí.
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Trash2, Calendar, Edit3, CheckCircle, Circle, AlignLeft, FileText, Check, X, GripVertical } from 'lucide-react';
+import { Trash2, Calendar, Edit3, CheckCircle, Circle, AlignLeft, FileText, Check, X, GripVertical, FolderPlus } from 'lucide-react';
 import { Pendiente } from '../lib/supabase';
 import { formatSpanishDate, getLocalDateString } from '../lib/utils';
 import CalendarModal from './CalendarModal';
+import ConfirmModal from './ConfirmModal';
 
 interface TaskItemProps {
   task: Pendiente;
@@ -99,10 +100,19 @@ export default function TaskItem({
     }
   };
 
+  const handleConvertToSubcategory = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await onUpdate(task.id, {
+      grupo_nombre: task.titulo,
+      grupo_color: '#8b5cf6', // Violeta premium por defecto
+      es_grupo: true
+    });
+  };
+
   return (
     <div
       onClick={handleCardClick}
-      className={`glass-panel glass-panel-hover rounded-xl p-3.5 flex flex-col gap-2.5 transition-smooth border-l-3 relative cursor-pointer group ${
+      className={`glass-panel glass-panel-hover rounded-xl p-2.5 flex flex-col gap-2 transition-smooth border-l-3 relative cursor-pointer group ${
         task.completado ? 'opacity-50' : 'opacity-100'
       }`}
       style={{ 
@@ -110,8 +120,18 @@ export default function TaskItem({
         '--card-glow': `${categoryColor}1f`
       } as React.CSSProperties}
     >
+      {/* Fecha y hora de creación sutil en el borde superior derecho */}
+      <span className="absolute top-1 right-2.5 text-[8px] md:text-[9px] text-slate-500/60 font-semibold tracking-wider pointer-events-none transition-opacity duration-200 group-hover:opacity-0 select-none">
+        {new Date(task.created_at).toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        })}
+      </span>
+
       <div className="flex items-center justify-between gap-3 w-full">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
           {!isEditing && (
             <GripVertical className="w-3.5 h-3.5 text-luxury-secondary opacity-25 group-hover:opacity-75 flex-shrink-0 cursor-grab active:cursor-grabbing transition-smooth" />
           )}
@@ -122,9 +142,9 @@ export default function TaskItem({
             className="flex-shrink-0 text-luxury-secondary hover:text-luxury-primary transition-smooth focus:outline-none cursor-pointer"
           >
             {task.completado ? (
-              <CheckCircle className="w-5 h-5 text-emerald-500 animate-check-pop fill-emerald-500/10" />
+              <CheckCircle className="w-4.5 h-4.5 text-emerald-500 animate-check-pop fill-emerald-500/10" />
             ) : (
-              <Circle className="w-5 h-5 hover:scale-105 transition-smooth" />
+              <Circle className="w-4.5 h-4.5 hover:scale-105 transition-smooth" />
             )}
           </button>
 
@@ -138,7 +158,7 @@ export default function TaskItem({
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   placeholder="Título de la tarea"
-                  className="bg-transparent text-sm md:text-base font-bold text-luxury-primary focus:outline-none border-b border-indigo-500/20 w-full py-0.5"
+                  className="bg-transparent text-xs md:text-sm font-bold text-luxury-primary focus:outline-none border-b border-indigo-500/20 w-full py-0.5"
                 />
                 <input
                   type="text"
@@ -151,7 +171,7 @@ export default function TaskItem({
             ) : (
               <div className="flex items-baseline gap-2 min-w-0 relative">
                 <span
-                  className={`text-sm md:text-base font-semibold truncate transition-smooth select-text ${
+                  className={`text-xs md:text-sm font-semibold truncate transition-smooth select-text ${
                     task.completado ? 'line-through text-luxury-muted' : 'text-luxury-primary hover:text-indigo-500'
                   }`}
                 >
@@ -181,7 +201,7 @@ export default function TaskItem({
 
             {/* Fila de detalles inferior */}
             {!isEditing && (
-              <div className="flex items-center gap-2.5 flex-wrap mt-0.5">
+              <div className="flex items-center gap-2.5 flex-wrap mt-0.5 w-full">
                 {categoryName && (
                   <span
                     className="text-[9px] font-semibold px-2 py-0.5 rounded-full border"
@@ -195,24 +215,24 @@ export default function TaskItem({
                   </span>
                 )}
 
-                <button
-                  onClick={() => setShowCalendarModal(true)}
-                  className={`flex items-center gap-1 text-[10px] hover:text-luxury-primary transition-smooth bg-indigo-500/5 hover:bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/10 cursor-pointer ${
-                    isOverdue ? 'text-rose-500 border-rose-500/20 font-semibold' : 'text-luxury-secondary'
-                  }`}
-                  title="Cambiar fecha límite"
-                >
-                  <Calendar className="w-3 h-3 flex-shrink-0" />
-                  <span>
-                    {task.fecha_limite
-                      ? task.fecha_limite === todayStr
+                {task.fecha_limite && (
+                  <button
+                    onClick={() => setShowCalendarModal(true)}
+                    className={`flex items-center gap-1 text-[10px] hover:text-luxury-primary transition-smooth bg-indigo-500/5 hover:bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/10 cursor-pointer ${
+                      isOverdue ? 'text-rose-500 border-rose-500/20 font-semibold' : 'text-luxury-secondary'
+                    }`}
+                    title="Cambiar fecha límite"
+                  >
+                    <Calendar className="w-3 h-3 flex-shrink-0" />
+                    <span>
+                      {task.fecha_limite === todayStr
                         ? 'Hoy'
                         : task.fecha_limite === getLocalDateString(1)
                         ? 'Mañana'
-                        : formatSpanishDate(task.fecha_limite)
-                      : 'Añadir fecha'}
-                  </span>
-                </button>
+                        : formatSpanishDate(task.fecha_limite)}
+                    </span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -242,6 +262,22 @@ export default function TaskItem({
           </div>
         ) : (
           <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 max-md:opacity-100">
+            {!task.grupo_nombre && (
+              <button
+                onClick={handleConvertToSubcategory}
+                className="p-1.5 text-luxury-secondary hover:text-emerald-500 hover:bg-emerald-500/5 rounded-lg transition-smooth cursor-pointer"
+                title="Convertir en subcategoría"
+              >
+                <FolderPlus className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              onClick={() => setShowCalendarModal(true)}
+              className="p-1.5 text-luxury-secondary hover:text-indigo-500 hover:bg-indigo-500/5 rounded-lg transition-smooth cursor-pointer"
+              title="Añadir/Cambiar fecha límite"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={() => setIsEditing(true)}
               className="p-1.5 text-luxury-secondary hover:text-indigo-500 hover:bg-indigo-500/5 rounded-lg transition-smooth cursor-pointer"
@@ -250,11 +286,7 @@ export default function TaskItem({
               <Edit3 className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => {
-                if (confirm('¿Eliminar esta tarea?')) {
-                  onDelete(task.id);
-                }
-              }}
+              onClick={() => onDelete(task.id)}
               className="p-1.5 text-luxury-secondary hover:text-rose-500 hover:bg-rose-500/5 rounded-lg transition-smooth cursor-pointer"
               title="Eliminar tarea"
             >

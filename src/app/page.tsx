@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { List, CalendarRange, Loader2, Command, Sun, Moon, LayoutGrid, LogOut } from 'lucide-react';
+import { List, CalendarRange, Loader2, Command, Sun, Moon, LayoutGrid, LogOut, Clipboard, Check } from 'lucide-react';
 import { supabase, Categoria, Pendiente } from '../lib/supabase';
 import CategoryTabs from '../components/CategoryTabs';
 import QuickInput from '../components/QuickInput';
@@ -10,6 +10,7 @@ import TaskTimelineView from '../components/TaskTimelineView';
 import TaskVisualView from '../components/TaskVisualView';
 import TaskDetailModal from '../components/TaskDetailModal';
 import AuthScreen from '../components/AuthScreen';
+import ConfirmModal from '../components/ConfirmModal';
 import { User } from '@supabase/supabase-js';
 
 // Paleta de colores premium para nuevas categorías
@@ -48,6 +49,18 @@ const PREMIUM_COLORS = [
   '#15803d', // Trébol Verde
 ];
 
+// Helper para generar UUIDs robustos incluso en contextos no seguros (HTTP)
+const generateUUID = () => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -60,6 +73,125 @@ export default function Home() {
   const [selectedTask, setSelectedTask] = useState<Pendiente | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
+  const [lastDeletedTask, setLastDeletedTask] = useState<Pendiente | null>(null);
+  const [activeGroupName, setActiveGroupName] = useState<string | null>(null);
+  const [activeGroupColor, setActiveGroupColor] = useState<string | null>(null);
+
+  // Al cambiar de categoría activa, reiniciar el grupo activo
+  useEffect(() => {
+    setActiveGroupName(null);
+    setActiveGroupColor(null);
+  }, [activeCategoryId]);
+
+  // Copiar tareas al portapapeles con fallback robusto
+  const handleExportToClipboard = () => {
+    if (tasks.length === 0) {
+      alert('No hay tareas para exportar.');
+      return;
+    }
+
+    let text = `# Mis Ideas y Tareas - Personal Task OS\n\n`;
+
+    // Categoría activa o todas
+    const targetCategoryId = activeCategoryId;
+
+    if (targetCategoryId !== null) {
+      // Exportar solo la categoría seleccionada
+      const catName = categories.find(c => c.id === targetCategoryId)?.nombre || 'Categoría';
+      text += `## Categoría: ${catName}\n`;
+      const catTasks = tasks.filter(t => t.categoria_id === targetCategoryId);
+      if (catTasks.length === 0) {
+        text += `*(No hay tareas en esta categoría)*\n`;
+      } else {
+        catTasks.forEach(t => {
+          const status = t.completado ? '[x]' : '[ ]';
+          const date = t.fecha_limite ? ` (Fecha límite: ${t.fecha_limite})` : '';
+          const note = t.nota ? `\n   Nota: ${t.nota}` : '';
+          text += `- ${status} ${t.titulo}${date}${note}\n`;
+        });
+      }
+    } else {
+      // Exportar todas las categorías
+      const inboxTasks = tasks.filter(t => t.categoria_id === null);
+      if (inboxTasks.length > 0) {
+        text += `## Inbox / Hoy\n`;
+        inboxTasks.forEach(t => {
+          const status = t.completado ? '[x]' : '[ ]';
+          const date = t.fecha_limite ? ` (Fecha límite: ${t.fecha_limite})` : '';
+          const note = t.nota ? `\n   Nota: ${t.nota}` : '';
+          text += `- ${status} ${t.titulo}${date}${note}\n`;
+        });
+        text += `\n`;
+      }
+
+      categories.forEach(cat => {
+        const catTasks = tasks.filter(t => t.categoria_id === cat.id);
+        if (catTasks.length > 0) {
+          text += `## Categoría: ${cat.nombre}\n`;
+          catTasks.forEach(t => {
+            const status = t.completado ? '[x]' : '[ ]';
+            const date = t.fecha_limite ? ` (Fecha límite: ${t.fecha_limite})` : '';
+            const note = t.nota ? `\n   Nota: ${t.nota}` : '';
+            text += `- ${status} ${t.titulo}${date}${note}\n`;
+          });
+          text += `\n`;
+        }
+      });
+    }
+
+    const cleanText = text.trim();
+
+    // Intentar navigator.clipboard.writeText
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(cleanText)
+        .then(() => {
+          setCopied(true);
+          setToastMessage('¡Lista copiada al portapapeles!');
+          setTimeout(() => {
+            setCopied(false);
+            setToastMessage(null);
+          }, 2000);
+        })
+        .catch(err => {
+          console.warn('Fallo navigator.clipboard, usando fallback:', err);
+          fallbackCopyText(cleanText);
+        });
+    } else {
+      fallbackCopyText(cleanText);
+    }
+  };
+
+  // Método de respaldo clásico que funciona en cualquier contexto de navegador
+  const fallbackCopyText = (text: string) => {
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      if (successful) {
+        setCopied(true);
+        setToastMessage('¡Lista copiada al portapapeles!');
+        setTimeout(() => {
+          setCopied(false);
+          setToastMessage(null);
+        }, 2000);
+      } else {
+        alert('No se pudo copiar el texto. Intente seleccionarlo manualmente.');
+      }
+    } catch (err) {
+      console.error('Error en el fallback de copiado:', err);
+      alert('Error al copiar al portapapeles.');
+    }
+  };
 
   // Escuchar estado de autenticación
   useEffect(() => {
@@ -235,10 +367,14 @@ export default function Home() {
     }
   }, [categories, isLoading, user]);
 
-  // 1. CREACIÓN DE TAREA (Optimista)
-  const handleCreateTask = async (titulo: string, fechaLimite: string | null) => {
+  const handleCreateTask = async (
+    titulo: string, 
+    fechaLimite: string | null, 
+    grupoNombre?: string | null, 
+    grupoColor?: string | null
+  ) => {
     if (!user) return;
-    const tempId = crypto.randomUUID();
+    const tempId = generateUUID();
     const newTask: Pendiente = {
       id: tempId,
       created_at: new Date().toISOString(),
@@ -248,6 +384,8 @@ export default function Home() {
       completado: false,
       categoria_id: activeCategoryId, // Si estamos en Inbox es null, si no, toma la pestaña activa
       user_id: user.id,
+      grupo_nombre: grupoNombre || null,
+      grupo_color: grupoColor || null,
     };
 
     // Actualización optimista de estado local
@@ -262,6 +400,8 @@ export default function Home() {
           completado: newTask.completado,
           categoria_id: newTask.categoria_id,
           user_id: user.id,
+          grupo_nombre: newTask.grupo_nombre,
+          grupo_color: newTask.grupo_color,
         }])
         .select()
         .single();
@@ -310,10 +450,21 @@ export default function Home() {
   // 3. ELIMINAR TAREA (Optimista)
   const handleDeleteTask = async (id: string) => {
     if (!user) return;
+    const taskToDelete = tasks.find(t => t.id === id);
+    if (!taskToDelete) return;
+
+    setLastDeletedTask(taskToDelete);
     const previousTasks = [...tasks];
 
     // Actualización optimista
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    setToastMessage('Tarea eliminada');
+
+    // Desvanecer el Toast y borrar el historial de deshacer tras 5 segundos
+    setTimeout(() => {
+      setToastMessage(prev => prev === 'Tarea eliminada' ? null : prev);
+      setLastDeletedTask(null);
+    }, 5000);
 
     try {
       const { error } = await supabase
@@ -326,7 +477,34 @@ export default function Home() {
     } catch (err) {
       console.error('Error eliminando tarea:', err);
       setTasks(previousTasks);
-      alert('Error al eliminar la tarea.');
+      setLastDeletedTask(null);
+      setToastMessage('Error al eliminar la tarea');
+      setTimeout(() => setToastMessage(null), 2000);
+    }
+  };
+
+  // RESTAURAR TAREA ELIMINADA (Deshacer)
+  const handleUndoDelete = async () => {
+    if (!lastDeletedTask || !user) return;
+    
+    // Restauración optimista
+    const restoredTask = lastDeletedTask;
+    setLastDeletedTask(null);
+    setTasks(prev => [restoredTask, ...prev]);
+    setToastMessage('Tarea restaurada');
+    setTimeout(() => setToastMessage(prev => prev === 'Tarea restaurada' ? null : prev), 2000);
+
+    try {
+      const { error } = await supabase
+        .from('pendientes')
+        .insert(restoredTask);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error restaurando tarea:', err);
+      setTasks(prev => prev.filter(t => t.id !== restoredTask.id));
+      setToastMessage('Error al restaurar tarea');
+      setTimeout(() => setToastMessage(null), 2000);
     }
   };
 
@@ -355,10 +533,173 @@ export default function Home() {
     }
   };
 
+  // Convertir subcategoría en tarea normal (Deshacer grupo)
+  const handleConvertGroupToTask = async (groupName: string) => {
+    if (!user) return;
+    try {
+      const definitionTask = tasks.find(t => t.es_grupo && t.grupo_nombre === groupName);
+      if (!definitionTask) return;
+
+      const previousTasks = [...tasks];
+      const previousCategories = [...categories];
+
+      // 1. Buscar o crear la categoría "General"
+      let generalCat = categories.find(c => c.nombre.toLowerCase() === 'general');
+      let generalCatId = generalCat?.id;
+
+      if (!generalCat) {
+        const tempCatId = generateUUID();
+        const finalColor = '#3b82f6'; // Azul Cobalto premium por defecto para General
+        const newCat: Categoria = {
+          id: tempCatId,
+          created_at: new Date().toISOString(),
+          nombre: 'General',
+          color: finalColor,
+          user_id: user.id
+        };
+
+        // Actualizar categorías en el estado local
+        setCategories((prev) => [...prev, newCat]);
+        generalCatId = tempCatId;
+
+        // Insertar la nueva categoría General en Supabase
+        const { error: catError } = await supabase
+          .from('categorias')
+          .insert([{
+            id: tempCatId,
+            nombre: 'General',
+            color: finalColor,
+            user_id: user.id
+          }]);
+
+        if (catError) {
+          console.error('Error creando categoría General:', catError);
+          setCategories(previousCategories);
+          throw catError;
+        }
+      }
+
+      // 2. Actualizar optimistamente el estado local de las tareas
+      setTasks(prev => prev.map(t => {
+        if (t.id === definitionTask.id) {
+          // La subcategoría misma vuelve a ser tarea normal (mantiene su categoría actual)
+          return { ...t, es_grupo: false, grupo_nombre: null, grupo_color: null };
+        }
+        if (t.grupo_nombre === groupName) {
+          // Las tareas hijas se mueven a la categoría "General" y se limpia su grupo
+          return { ...t, categoria_id: generalCatId || null, grupo_nombre: null, grupo_color: null };
+        }
+        return t;
+      }));
+
+      // Paso 1 en BD: Cambiar la definición a tarea normal
+      const { error: defError } = await supabase
+        .from('pendientes')
+        .update({ es_grupo: false, grupo_nombre: null, grupo_color: null })
+        .eq('id', definitionTask.id)
+        .eq('user_id', user.id);
+
+      if (defError) {
+        setTasks(previousTasks);
+        if (!generalCat) setCategories(previousCategories);
+        throw defError;
+      }
+
+      // Paso 2 en BD: Mover todos los pendientes de este grupo a la categoría General y limpiar grupo
+      const { error: tasksError } = await supabase
+        .from('pendientes')
+        .update({ categoria_id: generalCatId, grupo_nombre: null, grupo_color: null })
+        .eq('grupo_nombre', groupName)
+        .eq('user_id', user.id);
+
+      if (tasksError) {
+        setTasks(previousTasks);
+        if (!generalCat) setCategories(previousCategories);
+        throw tasksError;
+      }
+
+      // Reiniciar grupo activo si es el que se está convirtiendo
+      if (activeGroupName === groupName) {
+        setActiveGroupName(null);
+        setActiveGroupColor(null);
+      }
+    } catch (err) {
+      console.error('Error al deshacer subcategoría:', err);
+      alert('No se pudo deshacer la subcategoría.');
+    }
+  };
+
+  // Mover una tarea o subcategoría (grupo) completa a otra categoría (Drag and Drop)
+  const handleMoveTaskOrGroup = async (taskId: string, targetCategoryId: string | null) => {
+    if (!user) return;
+    const taskToMove = tasks.find(t => t.id === taskId);
+    if (!taskToMove) return;
+
+    const previousTasks = [...tasks];
+
+    if (taskToMove.es_grupo) {
+      const groupName = taskToMove.grupo_nombre;
+      
+      // Actualización optimista de estado local
+      setTasks(prev => prev.map(t => {
+        if (t.id === taskId) {
+          return { ...t, categoria_id: targetCategoryId };
+        }
+        if (t.grupo_nombre === groupName) {
+          return { ...t, categoria_id: targetCategoryId };
+        }
+        return t;
+      }));
+
+      try {
+        // Actualizar la cabecera del grupo en la BD
+        const { error: defError } = await supabase
+          .from('pendientes')
+          .update({ categoria_id: targetCategoryId })
+          .eq('id', taskId)
+          .eq('user_id', user.id);
+
+        if (defError) throw defError;
+
+        // Actualizar todas las tareas del grupo en la BD
+        if (groupName) {
+          const { error: tasksError } = await supabase
+            .from('pendientes')
+            .update({ categoria_id: targetCategoryId })
+            .eq('grupo_nombre', groupName)
+            .eq('user_id', user.id);
+
+          if (tasksError) throw tasksError;
+        }
+      } catch (err) {
+        console.error('Error al mover subcategoría y sus tareas:', err);
+        setTasks(previousTasks);
+        alert('No se pudo mover la subcategoría.');
+      }
+    } else {
+      // Es una tarea normal
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, categoria_id: targetCategoryId } : t));
+
+      try {
+        const { error } = await supabase
+          .from('pendientes')
+          .update({ categoria_id: targetCategoryId })
+          .eq('id', taskId)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+      } catch (err) {
+        console.error('Error al mover tarea a categoría:', err);
+        setTasks(previousTasks);
+        alert('No se pudo mover la tarea.');
+      }
+    }
+  };
+
   // 5. CREACIÓN DE CATEGORÍA (Optimista)
   const handleCreateCategory = async (nombre: string) => {
     if (!user) return;
-    const tempId = crypto.randomUUID();
+    const tempId = generateUUID();
     // Algoritmo para evitar colores repetidos en categorías activas
     const usedColors = categories.map((c) => c.color);
     const unusedColors = PREMIUM_COLORS.filter((color) => !usedColors.includes(color));
@@ -426,6 +767,10 @@ export default function Home() {
 
   // 7. ELIMINAR CATEGORÍA (Optimista)
   const handleDeleteCategory = async (id: string) => {
+    setDeletingCategoryId(id);
+  };
+
+  const confirmDeleteCategory = async (id: string) => {
     if (!user) return;
     const previousCats = [...categories];
     const previousTasks = [...tasks];
@@ -476,8 +821,8 @@ export default function Home() {
   // Nombre de la categoría activa para mostrar en el placeholder del input
   const activeCategoryName =
     activeCategoryId === null
-      ? 'Inbox / Hoy'
-      : categories.find((c) => c.id === activeCategoryId)?.nombre || 'Categoría';
+      ? (activeGroupName ? `Inbox > ${activeGroupName}` : 'Inbox / Hoy')
+      : `${categories.find((c) => c.id === activeCategoryId)?.nombre || 'Categoría'}${activeGroupName ? ` > ${activeGroupName}` : ''}`;
 
   const pendingCount = tasks.filter(t => !t.completado).length;
   const completedCount = tasks.filter(t => t.completado).length;
@@ -511,46 +856,38 @@ export default function Home() {
     <div className="flex-1 w-full max-w-3xl mx-auto flex flex-col px-4 md:px-8 py-8 md:py-16 gap-8">
       {/* HEADER: Título y Selector de Vista */}
       <header className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/10 flex-shrink-0">
-            <span className="font-bold text-base tracking-tighter">O</span>
-            <span className="font-semibold text-xs tracking-tighter -ml-0.5 text-indigo-200">S</span>
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg font-extrabold leading-tight text-gradient-luxury">Personal Task OS</h1>
-              {totalCount > 0 && (
-                <div className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/15 px-2 py-0.5 rounded-lg text-[9px] font-extrabold text-indigo-500 tracking-wide animate-check-pop">
-                  <div className="relative w-3 h-3 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-full h-full transform -rotate-90">
-                      <circle cx="6" cy="6" r="4.5" fill="transparent" stroke="currentColor" className="opacity-15" strokeWidth="1" />
-                      <circle 
-                        cx="6" 
-                        cy="6" 
-                        r="4.5" 
-                        fill="transparent" 
-                        stroke="currentColor" 
-                        strokeWidth="1" 
-                        strokeDasharray={2 * Math.PI * 4.5} 
-                        strokeDashoffset={2 * Math.PI * 4.5 * (1 - completionRate / 100)} 
-                        className="transition-all duration-500"
-                      />
-                    </svg>
-                  </div>
-                  <span>{completionRate}% HECHO</span>
-                </div>
-              )}
-            </div>
-            <p className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">Luxury Workspace</p>
-          </div>
+        <div className="flex flex-col">
+          <h1 className="text-xl font-extrabold tracking-tight text-gradient-luxury">Personal Task OS</h1>
+          {totalCount > 0 && (
+            <p className="text-[10px] text-slate-400 font-semibold tracking-wide mt-0.5">
+              {completionRate}% completado • {completedCount}/{totalCount} tareas
+            </p>
+          )}
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          {/* Botón Exportar para Gemini */}
+          <button
+            onClick={handleExportToClipboard}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-smooth cursor-pointer glass-panel border-white/5 hover:text-white glass-panel-hover ${
+              copied
+                ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'
+                : 'text-slate-400'
+            }`}
+            title={activeCategoryId ? "Copiar tareas de esta categoría" : "Copiar todas las tareas"}
+          >
+            {copied ? (
+              <Check className="w-4 h-4 text-emerald-400 animate-check-pop" />
+            ) : (
+              <Clipboard className="w-4 h-4" />
+            )}
+          </button>
+
           {/* Interruptor de Vista Triple */}
           <div className="flex items-center p-0.5 glass-panel rounded-xl">
             <button
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
                   : 'text-slate-400 hover:text-slate-200'
@@ -562,19 +899,19 @@ export default function Home() {
             </button>
             <button
               onClick={() => setViewMode('timeline')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
                 viewMode === 'timeline'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="Vista Línea de Tiempo"
+              title="Vista Calendario"
             >
               <CalendarRange className="w-3.5 h-3.5" />
-              <span className="max-sm:hidden">Línea de Tiempo</span>
+              <span className="max-sm:hidden">Calendario</span>
             </button>
             <button
               onClick={() => setViewMode('visual')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
                 viewMode === 'visual'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
                   : 'text-slate-400 hover:text-slate-200'
@@ -609,30 +946,17 @@ export default function Home() {
         </div>
       ) : (
         <main className="flex flex-col gap-6 flex-1">
-          {/* Fila de Captura Rápida y Buscador Minimalista */}
-          <section className="flex flex-col sm:flex-row gap-3">
+          {/* Fila de Captura Rápida con Buscador Integrado */}
+          <section className="flex gap-3">
             <div className="flex-1">
               <QuickInput
                 onSubmitTask={handleCreateTask}
                 activeCategoryName={activeCategoryName}
+                tasks={tasks}
+                categories={categories}
+                onToggleTask={handleToggleTask}
+                onOpenDetail={setSelectedTask}
               />
-            </div>
-            <div className="relative flex items-center sm:w-60 w-full">
-              <input
-                type="text"
-                placeholder="Buscar pendientes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full glass-input px-3.5 py-3 text-xs md:text-sm rounded-xl text-luxury-primary placeholder:text-slate-500 font-normal focus:ring-1 focus:ring-indigo-500/20"
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3.5 text-slate-500 hover:text-luxury-primary text-[10px] font-bold cursor-pointer transition-smooth"
-                >
-                  limpiar
-                </button>
-              )}
             </div>
           </section>
 
@@ -647,6 +971,7 @@ export default function Home() {
                 onRenameCategory={handleRenameCategory}
                 onDeleteCategory={handleDeleteCategory}
                 onReorderCategories={handleReorderCategories}
+                onDropTaskOrGroup={handleMoveTaskOrGroup}
               />
             </section>
           )}
@@ -663,6 +988,13 @@ export default function Home() {
                 onUpdateTask={handleUpdateTask}
                 onReorderTasks={handleReorderTasks}
                 onOpenDetail={setSelectedTask}
+                onCreateTask={handleCreateTask}
+                activeGroupName={activeGroupName}
+                onSelectGroup={(name, color) => {
+                  setActiveGroupName(name);
+                  setActiveGroupColor(color);
+                }}
+                onConvertGroupToTask={handleConvertGroupToTask}
               />
             ) : viewMode === 'timeline' ? (
               <TaskTimelineView
@@ -725,6 +1057,42 @@ export default function Home() {
           )}
         </button>
       </div>
+
+      {/* Toast de Notificación Flotante */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
+          <div className="px-4 py-2.5 bg-white/90 dark:bg-slate-950/90 border border-slate-200/80 dark:border-white/10 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-xl shadow-2xl backdrop-blur-md animate-check-pop flex items-center gap-2.5 pointer-events-auto">
+            <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 animate-check-pop" />
+            <span>{toastMessage}</span>
+            {lastDeletedTask && toastMessage === 'Tarea eliminada' && (
+              <button
+                onClick={handleUndoDelete}
+                className="ml-1 px-2.5 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 border border-indigo-500/15 rounded-lg text-[10px] font-bold tracking-wide transition-smooth cursor-pointer uppercase"
+              >
+                Deshacer
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmación para eliminar categoría */}
+      {deletingCategoryId && (
+        <ConfirmModal
+          isOpen={!!deletingCategoryId}
+          title="Eliminar Categoría"
+          message={`¿Eliminar la categoría "${categories.find(c => c.id === deletingCategoryId)?.nombre}"? Se borrarán todas sus tareas asociadas.`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          isDestructive={true}
+          onConfirm={() => {
+            const id = deletingCategoryId;
+            setDeletingCategoryId(null);
+            confirmDeleteCategory(id);
+          }}
+          onCancel={() => setDeletingCategoryId(null)}
+        />
+      )}
     </div>
   );
 }

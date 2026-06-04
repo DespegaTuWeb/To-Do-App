@@ -13,6 +13,7 @@ interface CategoryTabsProps {
   onRenameCategory: (id: string, nuevoNombre: string) => Promise<void>;
   onDeleteCategory: (id: string) => Promise<void>;
   onReorderCategories: (orderedCategories: Categoria[]) => void;
+  onDropTaskOrGroup?: (taskId: string, targetCategoryId: string | null) => Promise<void>;
 }
 
 export default function CategoryTabs({
@@ -23,6 +24,7 @@ export default function CategoryTabs({
   onRenameCategory,
   onDeleteCategory,
   onReorderCategories,
+  onDropTaskOrGroup,
 }: CategoryTabsProps) {
   // Estado para la creación inline de categoría
   const [isAdding, setIsAdding] = useState(false);
@@ -41,8 +43,11 @@ export default function CategoryTabs({
     categoryName: string;
   } | null>(null);
 
-  // ID del elemento que se está arrastrando
+  // ID del elemento que se está arrastrando (reordenación de categorías)
   const [draggedId, setDraggedId] = useState<string | null>(null);
+
+  // Estado para saber sobre qué pestaña se está arrastrando una tarea o subcategoría
+  const [activeOverTabId, setActiveOverTabId] = useState<string | null | undefined>(undefined);
 
   // Soporte para Long Press en móvil
   const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -162,6 +167,27 @@ export default function CategoryTabs({
     setDraggedId(null);
   };
 
+  // Drag Over, Leave y Drop para tareas/grupos arrastrados a pestañas
+  const handleDragOverTab = (e: React.DragEvent, id: string | null) => {
+    e.preventDefault();
+    setActiveOverTabId(id);
+  };
+
+  const handleDragLeaveTab = () => {
+    setActiveOverTabId(undefined);
+  };
+
+  const handleDropTab = async (e: React.DragEvent, targetCategoryId: string | null) => {
+    e.preventDefault();
+    setActiveOverTabId(undefined);
+    const taskId = e.dataTransfer.getData('task-id');
+    if (!taskId) return;
+
+    if (onDropTaskOrGroup) {
+      await onDropTaskOrGroup(taskId, targetCategoryId);
+    }
+  };
+
   // Limpiar timers
   useEffect(() => {
     return () => {
@@ -177,13 +203,18 @@ export default function CategoryTabs({
         {/* Pestaña Inbox (Fija) */}
         <button
           onClick={() => onSelectCategory(null)}
-          className={`flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-medium rounded-full border transition-smooth whitespace-nowrap cursor-pointer ${
+          onDragOver={(e) => handleDragOverTab(e, null)}
+          onDragLeave={handleDragLeaveTab}
+          onDrop={(e) => handleDropTab(e, null)}
+          className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full border transition-smooth whitespace-nowrap cursor-pointer ${
             activeCategoryId === null
               ? 'bg-white text-slate-950 border-white shadow-lg'
+              : activeOverTabId === null
+              ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-400 scale-[1.04] shadow-md shadow-indigo-500/10'
               : 'glass-panel text-luxury-secondary border-white/5 hover:text-luxury-primary glass-panel-hover'
           }`}
         >
-          <Inbox className="w-3.5 h-3.5" />
+          <Inbox className="w-3 h-3" />
           Inbox / Hoy
         </button>
 
@@ -195,7 +226,7 @@ export default function CategoryTabs({
 
           if (isRenaming) {
             return (
-              <div key={cat.id} className="glass-panel border-white/10 rounded-full px-4 py-1.5 animate-check-pop">
+              <div key={cat.id} className="glass-panel border-white/10 rounded-full px-3 py-1 animate-check-pop">
                 <input
                   ref={renameInputRef}
                   type="text"
@@ -205,7 +236,7 @@ export default function CategoryTabs({
                     if (e.key === 'Escape') setRenamingId(null);
                   }}
                   onBlur={(e) => handleRenameSubmit(cat.id, e.currentTarget.value)}
-                  className="bg-transparent text-xs md:text-sm text-luxury-primary focus:outline-none w-24 max-w-[120px]"
+                  className="bg-transparent text-xs text-luxury-primary focus:outline-none w-24 max-w-[120px]"
                 />
               </div>
             );
@@ -215,8 +246,8 @@ export default function CategoryTabs({
             <div
               key={cat.id}
               draggable
-              onDragStart={(e) => handleDragStart(e, cat.id)}
               onDragOver={(e) => handleDragOver(e, cat.id)}
+              onDragLeave={handleDragLeaveTab}
               onDragEnd={handleDragEnd}
               className={`flex items-center transition-all duration-200 ${
                 isDragging ? 'opacity-30 scale-95' : 'opacity-100'
@@ -224,22 +255,27 @@ export default function CategoryTabs({
             >
               <button
                 onClick={() => onSelectCategory(cat.id)}
+                onDragOver={(e) => handleDragOverTab(e, cat.id)}
+                onDragLeave={handleDragLeaveTab}
+                onDrop={(e) => handleDropTab(e, cat.id)}
                 onContextMenu={(e) => handleContextMenu(e, cat.id, cat.nombre)}
                 onTouchStart={(e) => handleTouchStart(e, cat.id, cat.nombre)}
                 onTouchEnd={handleTouchEnd}
                 onTouchMove={handleTouchMove}
-                className={`flex items-center gap-2 pl-3 pr-4 py-2 text-xs md:text-sm font-medium rounded-full border transition-smooth whitespace-nowrap cursor-pointer select-none group relative ${
+                className={`flex items-center gap-1.5 pl-2.5 pr-3.5 py-1.5 text-xs font-semibold rounded-full border transition-smooth whitespace-nowrap cursor-pointer select-none group relative ${
                   isActive
                     ? 'bg-white text-slate-950 border-white shadow-lg shadow-white/5'
+                    : activeOverTabId === cat.id
+                    ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-400 scale-[1.04] shadow-md shadow-indigo-500/10'
                     : 'glass-panel text-luxury-secondary border-white/5 hover:text-luxury-primary glass-panel-hover'
                 }`}
               >
-                <GripVertical className={`w-3 h-3 text-slate-500 mr-[-4px] cursor-grab active:cursor-grabbing transition-opacity duration-200 ${
+                <GripVertical className={`w-2.5 h-2.5 text-slate-500 mr-[-2px] cursor-grab active:cursor-grabbing transition-opacity duration-200 ${
                   isActive ? 'text-slate-600' : 'opacity-40 group-hover:opacity-100'
                 }`} />
 
                 <span
-                  className="w-2 h-2 rounded-full transition-transform"
+                  className="w-1.5 h-1.5 rounded-full transition-transform"
                   style={{ backgroundColor: cat.color || '#3b82f6' }}
                 />
                 {cat.nombre}
@@ -283,19 +319,6 @@ export default function CategoryTabs({
               <Plus className="w-3.5 h-3.5 mr-1" />
               <span className="text-xs">Añadir</span>
             </button>
-
-            {/* Botón Ordenación Alfabética (A-Z) para Categorías */}
-            {categories.length > 1 && (
-              <button
-                type="button"
-                onClick={handleSortAlphabetically}
-                className="flex items-center justify-center p-2 rounded-full border border-dashed border-white/15 hover:border-white/30 text-luxury-secondary hover:text-luxury-primary transition-smooth cursor-pointer glass-panel-hover px-3 py-1.5"
-                title="Ordenar Categorías A-Z"
-              >
-                <ArrowUpDown className="w-3.5 h-3.5 mr-1" />
-                <span className="text-xs font-semibold">Ordenar A-Z</span>
-              </button>
-            )}
           </div>
         )}
       </div>
