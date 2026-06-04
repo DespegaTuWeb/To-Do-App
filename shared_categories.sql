@@ -24,7 +24,7 @@ ON categorias_compartidas
 FOR SELECT
 USING (
   auth.uid() = owner_id
-  OR auth.jwt()->>'email' = email_usuario
+  OR lower(auth.jwt()->>'email') = lower(email_usuario)
 );
 
 -- Solo el dueño de la categoría puede compartir o eliminar acceso
@@ -50,7 +50,7 @@ USING (
   OR id IN (
     SELECT categoria_id 
     FROM categorias_compartidas 
-    WHERE email_usuario = auth.jwt()->>'email'
+    WHERE lower(email_usuario) = lower(auth.jwt()->>'email')
   )
 );
 
@@ -82,7 +82,7 @@ USING (
     OR id IN (
       SELECT categoria_id 
       FROM categorias_compartidas 
-      WHERE email_usuario = auth.jwt()->>'email'
+      WHERE lower(email_usuario) = lower(auth.jwt()->>'email')
     )
   )
 );
@@ -100,7 +100,7 @@ USING (
     OR id IN (
       SELECT categoria_id 
       FROM categorias_compartidas 
-      WHERE email_usuario = auth.jwt()->>'email'
+      WHERE lower(email_usuario) = lower(auth.jwt()->>'email')
     )
   )
 );

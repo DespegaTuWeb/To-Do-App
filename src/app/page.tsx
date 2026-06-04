@@ -83,6 +83,7 @@ export default function Home() {
   const [activeGroupColor, setActiveGroupColor] = useState<string | null>(null);
   const [sharedCategoryIds, setSharedCategoryIds] = useState<string[]>([]);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [hasPendingInvites, setHasPendingInvites] = useState(false);
   const isInitialLoadRef = useRef(true);
 
   // Al cambiar de categoría activa, reiniciar el grupo activo
@@ -293,23 +294,43 @@ export default function Home() {
 
       if (tasksError) throw tasksError;
 
-      // Fetch IDs de categorías compartidas asociadas a este usuario
+      // Fetch IDs de categorías compartidas aceptadas asociadas a este usuario
       const { data: sharedData, error: sharedError } = await supabase
         .from('categorias_compartidas')
-        .select('categoria_id');
+        .select('categoria_id')
+        .eq('aceptada', true);
 
+      let acceptedSharedIds: string[] = [];
       if (!sharedError && sharedData) {
-        const ids = sharedData.map((d) => d.categoria_id);
-        setSharedCategoryIds(ids);
+        acceptedSharedIds = sharedData.map((d) => d.categoria_id);
+        setSharedCategoryIds(acceptedSharedIds);
+      }
+
+      // Consultar si hay invitaciones pendientes recibidas para el punto naranja de notificación
+      if (user.email) {
+        const { data: pendingData, error: pendingError } = await supabase
+          .from('categorias_compartidas')
+          .select('id')
+          .eq('email_usuario', user.email.trim().toLowerCase())
+          .eq('aceptada', false);
+
+        if (!pendingError && pendingData) {
+          setHasPendingInvites(pendingData.length > 0);
+        }
       }
 
       const loadedCats = catsData || [];
+      // Filtrar para mostrar solo las categorías propias o las compartidas y ACEPTADAS
+      const visibleCats = loadedCats.filter(cat => 
+        !cat.user_id || cat.user_id === user.id || acceptedSharedIds.includes(cat.id)
+      );
+
       if (typeof window !== 'undefined') {
         const storedOrder = localStorage.getItem(`category_order_${user.id}`);
         if (storedOrder) {
           try {
             const ids = JSON.parse(storedOrder) as string[];
-            loadedCats.sort((a, b) => {
+            visibleCats.sort((a, b) => {
               const idxA = ids.indexOf(a.id);
               const idxB = ids.indexOf(b.id);
               if (idxA === -1 && idxB === -1) return 0;
@@ -324,12 +345,18 @@ export default function Home() {
       }
 
       const loadedTasks = tasksData || [];
+      // Filtrar para mostrar solo las tareas de categorías visibles (o sin categoría)
+      const visibleTasks = loadedTasks.filter(task => {
+        if (!task.categoria_id) return true;
+        return visibleCats.some(c => c.id === task.categoria_id);
+      });
+
       if (typeof window !== 'undefined') {
         const storedTaskOrder = localStorage.getItem(`task_order_${user.id}`);
         if (storedTaskOrder) {
           try {
             const ids = JSON.parse(storedTaskOrder) as string[];
-            loadedTasks.sort((a, b) => {
+            visibleTasks.sort((a, b) => {
               const idxA = ids.indexOf(a.id);
               const idxB = ids.indexOf(b.id);
               if (idxA === -1 && idxB === -1) return 0;
@@ -343,8 +370,8 @@ export default function Home() {
         }
       }
 
-      setCategories(loadedCats);
-      setTasks(loadedTasks);
+      setCategories(visibleCats);
+      setTasks(visibleTasks);
       lastLoadedUserIdRef.current = user.id;
     } catch (err) {
       console.error('Error cargando datos de Supabase:', err);
@@ -1076,10 +1103,13 @@ export default function Home() {
           {/* Botón Compartir */}
           <button
             onClick={() => setIsShareOpen(true)}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-smooth cursor-pointer glass-panel border-white/5 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 glass-panel-hover"
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-smooth cursor-pointer glass-panel border-white/5 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 glass-panel-hover relative"
             title="Compartir Categoría"
           >
             <Users className="w-4 h-4" />
+            {hasPendingInvites && (
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-md shadow-amber-500/20" />
+            )}
           </button>
         </div>
       </header>
@@ -1245,6 +1275,10 @@ export default function Home() {
         onClose={() => setIsShareOpen(false)}
         categories={categories}
         currentUserId={user.id}
+        currentUserEmail={user.email || ''}
+        onRefreshData={async () => {
+          await loadData(true);
+        }}
       />
 
       {/* Confirmación para eliminar categoría */}
