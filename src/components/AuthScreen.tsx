@@ -88,29 +88,29 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-72 h-72 rounded-full bg-purple-500/10 blur-[120px] pointer-events-none" />
 
       {/* Main card */}
-      <div className="w-full max-w-md glass-panel rounded-3xl p-8 md:p-10 shadow-2xl relative z-10 border border-white/5 animate-check-pop">
+      <div className="w-full max-w-md glass-panel rounded-3xl p-8 md:p-10 shadow-2xl relative z-10 border border-[var(--c-border)] animate-check-pop">
         {/* Header/Logo */}
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/10 mb-4 animate-check-pop">
-            <span className="font-extrabold text-2xl tracking-tighter">K</span>
+          <div className="px-4.5 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/15 mb-4 animate-check-pop">
+            <span className="font-extrabold text-sm tracking-tighter">KEAGO</span>
           </div>
           <h2 className="text-2xl font-extrabold text-gradient-luxury tracking-tight mb-1">
             {isSignUp ? 'Crea tu Cuenta Luxury' : 'Accede a tu Workspace'}
           </h2>
-          <p className="text-xs text-slate-400 font-medium tracking-wide uppercase">
-            Keago
+          <p className="text-xs text-luxury-muted font-bold tracking-widest uppercase">
+            Keago Workspace
           </p>
         </div>
 
         {/* Errors & Success notifications */}
         {errorMsg && (
-          <div className="mb-5 p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-400 animate-check-pop text-center font-medium">
+          <div className="mb-5 p-3.5 rounded-xl border border-rose-500/20 bg-rose-500/5 text-xs text-rose-400 animate-check-pop text-center font-semibold">
             {errorMsg}
           </div>
         )}
 
         {successMsg && (
-          <div className="mb-5 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400 animate-check-pop text-center font-medium">
+          <div className="mb-5 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-400 animate-check-pop text-center font-semibold">
             {successMsg}
           </div>
         )}
@@ -118,35 +118,35 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         {/* Auth form */}
         <form onSubmit={handleAuth} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">
+            <label className="text-xs font-bold text-luxury-muted uppercase tracking-widest px-1">
               Email
             </label>
             <div className="relative flex items-center">
-              <Mail className="absolute left-4 w-4 h-4 text-slate-500" />
+              <Mail className="absolute left-4 w-4 h-4 text-luxury-muted" />
               <input
                 type="email"
                 placeholder="ejemplo@correo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full glass-input pl-11 pr-4 py-3 rounded-xl text-xs md:text-sm text-luxury-primary placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500/20"
+                className="w-full glass-input pl-11 pr-4 py-3 rounded-xl text-xs md:text-sm text-luxury-primary placeholder:text-luxury-muted/50 focus:ring-1 focus:ring-indigo-500/20"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">
+            <label className="text-xs font-bold text-luxury-muted uppercase tracking-widest px-1">
               Contraseña
             </label>
             <div className="relative flex items-center">
-              <KeyRound className="absolute left-4 w-4 h-4 text-slate-500" />
+              <KeyRound className="absolute left-4 w-4 h-4 text-luxury-muted" />
               <input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full glass-input pl-11 pr-4 py-3 rounded-xl text-xs md:text-sm text-luxury-primary placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500/20"
+                className="w-full glass-input pl-11 pr-4 py-3 rounded-xl text-xs md:text-sm text-luxury-primary placeholder:text-luxury-muted/50 focus:ring-1 focus:ring-indigo-500/20"
               />
             </div>
           </div>
@@ -171,8 +171,8 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         </form>
 
         {/* Tab switcher */}
-        <div className="mt-8 pt-6 border-t border-white/5 text-center">
-          <p className="text-xs text-slate-400">
+        <div className="mt-8 pt-6 border-t border-[var(--c-border)] text-center">
+          <p className="text-xs text-luxury-secondary font-medium">
             {isSignUp ? '¿Ya tienes una cuenta?' : '¿No tienes cuenta aún?'}
             <button
               onClick={() => {
@@ -180,7 +180,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 setErrorMsg(null);
                 setSuccessMsg(null);
               }}
-              className="text-indigo-400 hover:text-indigo-300 font-extrabold tracking-tight transition-smooth cursor-pointer ml-1.5 focus:outline-none"
+              className="text-indigo-500 dark:text-indigo-400 hover:text-indigo-400 font-extrabold tracking-tight transition-smooth cursor-pointer ml-1.5 focus:outline-none"
             >
               {isSignUp ? 'Inicia Sesión' : 'Regístrate Gratis'}
             </button>
