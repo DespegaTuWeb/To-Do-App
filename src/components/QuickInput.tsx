@@ -6,12 +6,19 @@ import CalendarModal from './CalendarModal';
 import { Pendiente, Categoria } from '../lib/supabase';
 
 interface QuickInputProps {
-  onSubmitTask: (titulo: string, fechaLimite: string | null) => Promise<void>;
+  onSubmitTask: (
+    titulo: string, 
+    fechaLimite: string | null, 
+    grupoNombre?: string | null, 
+    grupoColor?: string | null
+  ) => Promise<void>;
   activeCategoryName: string;
   tasks?: Pendiente[];
   categories?: Categoria[];
   onToggleTask?: (id: string, completado: boolean) => Promise<void>;
   onOpenDetail?: (task: Pendiente) => void;
+  activeGroupName?: string | null;
+  activeGroupColor?: string | null;
 }
 
 export default function QuickInput({ 
@@ -20,7 +27,9 @@ export default function QuickInput({
   tasks = [],
   categories = [],
   onToggleTask,
-  onOpenDetail
+  onOpenDetail,
+  activeGroupName,
+  activeGroupColor
 }: QuickInputProps) {
   const [titulo, setTitulo] = useState('');
   const [fechaLimite, setFechaLimite] = useState<string>('');
@@ -78,7 +87,7 @@ export default function QuickInput({
     if (!titulo.trim()) return;
 
     const selectedDate = fechaLimite || null;
-    await onSubmitTask(titulo.trim(), selectedDate);
+    await onSubmitTask(titulo.trim(), selectedDate, activeGroupName, activeGroupColor);
     
     setTitulo('');
     setFechaLimite('');

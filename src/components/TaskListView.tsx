@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Sparkles, Folder, Plus, Undo2, ListTree } fr
 import { Pendiente, Categoria } from '../lib/supabase';
 import { getLocalDateString } from '../lib/utils';
 import TaskItem from './TaskItem';
+import ConfirmModal from './ConfirmModal';
 
 const PREMIUM_GROUP_COLORS = [
   '#3b82f6', // Azul Cobalto
@@ -51,6 +52,8 @@ export default function TaskListView({
   const [showCompleted, setShowCompleted] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [isDragReady, setIsDragReady] = useState<string | null>(null);
+  const [revertingGroupName, setRevertingGroupName] = useState<string | null>(null);
   const todayStr = getLocalDateString(0);
 
   // Filtrado de tareas según la categoría activa
@@ -257,7 +260,11 @@ export default function TaskListView({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onConvertGroupToTask(groupName);
+                          if (groupTasks.length > 0) {
+                            setRevertingGroupName(groupName);
+                          } else {
+                            onConvertGroupToTask(groupName);
+                          }
                         }}
                         className="p-1 text-slate-500 hover:text-rose-400 hover:bg-white/5 rounded transition-smooth cursor-pointer"
                         title="Deshacer subcategoría (convertir a tarea)"
@@ -293,10 +300,13 @@ export default function TaskListView({
                       return (
                         <div
                           key={task.id}
-                          draggable
+                          draggable={isDragReady === task.id}
                           onDragStart={(e) => handleDragStart(e, task.id)}
                           onDragOver={(e) => handleDragOver(e, task.id)}
-                          onDragEnd={handleDragEnd}
+                          onDragEnd={() => {
+                            handleDragEnd();
+                            setIsDragReady(null);
+                          }}
                           className={`transition-all duration-200 ${
                             isDragging ? 'opacity-20 scale-[0.98]' : 'opacity-100'
                           }`}
@@ -308,6 +318,13 @@ export default function TaskListView({
                             onDelete={onDeleteTask}
                             onUpdate={onUpdateTask}
                             onOpenDetail={onOpenDetail}
+                            onDragReadyStateChange={(ready) => {
+                              if (ready) {
+                                setIsDragReady(task.id);
+                              } else {
+                                setIsDragReady(null);
+                              }
+                            }}
                           />
                         </div>
                       );
@@ -369,6 +386,23 @@ export default function TaskListView({
             </div>
           )}
         </div>
+      )}
+      {/* Confirmación para deshacer subcategoría con ítems */}
+      {revertingGroupName && (
+        <ConfirmModal
+          isOpen={!!revertingGroupName}
+          title="Deshacer Subcategoría"
+          message={`Esta subcategoría contiene tareas. Si la deshaces, todas sus tareas asociadas se convertirán en tareas normales en esta misma categoría.`}
+          confirmText="Confirmar"
+          cancelText="Cancelar"
+          onConfirm={() => {
+            if (onConvertGroupToTask && revertingGroupName) {
+              onConvertGroupToTask(revertingGroupName);
+            }
+            setRevertingGroupName(null);
+          }}
+          onCancel={() => setRevertingGroupName(null)}
+        />
       )}
     </div>
   );

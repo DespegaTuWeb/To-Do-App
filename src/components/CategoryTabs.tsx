@@ -199,7 +199,7 @@ export default function CategoryTabs({
 
   return (
     <div className="relative w-full">
-      <div className="flex flex-wrap items-center gap-2 py-2 px-1">
+      <div className="flex flex-wrap items-center gap-2 py-2">
         {/* Pestaña Inbox (Fija) */}
         <button
           onClick={() => onSelectCategory(null)}

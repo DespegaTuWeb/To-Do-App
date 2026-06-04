@@ -956,6 +956,8 @@ export default function Home() {
                 categories={categories}
                 onToggleTask={handleToggleTask}
                 onOpenDetail={setSelectedTask}
+                activeGroupName={activeGroupName}
+                activeGroupColor={activeGroupColor}
               />
             </div>
           </section>
