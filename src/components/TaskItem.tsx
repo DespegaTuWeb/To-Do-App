@@ -6,6 +6,7 @@ import { Pendiente } from '../lib/supabase';
 import { formatSpanishDate, getLocalDateString } from '../lib/utils';
 import CalendarModal from './CalendarModal';
 import ConfirmModal from './ConfirmModal';
+import { fireParticleConfetti } from '../lib/ParticleConfetti';
 
 interface TaskItemProps {
   task: Pendiente;
@@ -128,9 +129,7 @@ export default function TaskItem({
     onToggle(task.id, willBeCompleted);
     
     if (willBeCompleted) {
-      import('../lib/ParticleConfetti').then(({ fireParticleConfetti }) => {
-        fireParticleConfetti(e.clientX, e.clientY, categoryColor);
-      });
+      fireParticleConfetti(e.clientX, e.clientY, categoryColor);
     }
   };
 
