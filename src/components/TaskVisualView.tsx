@@ -123,8 +123,8 @@ export default function TaskVisualView({
         </span>
       </div>
 
-      {/* 1. SECCIÓN SUPERIOR: Grid de 4 Columnas Temporales (Más amplias e intuitivas) */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start w-full">
+      {/* 1. SECCIÓN SUPERIOR: Grid de 4 Columnas Temporales (Deslizable en móvil, Grid en desktop) */}
+      <div className="flex overflow-x-auto pb-4 snap-x md:grid md:grid-cols-4 gap-4 items-start w-full no-scrollbar">
         {timelineColumns.map(({ key, title, items, colorClass, dot }) => {
           const isOver = activeColumn === key;
 
@@ -134,7 +134,7 @@ export default function TaskVisualView({
               onDragOver={(e) => handleDragOver(e, key)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, key)}
-              className={`flex flex-col gap-3 p-3.5 rounded-2xl glass-panel min-h-[300px] transition-smooth border border-dashed ${
+              className={`flex flex-col gap-3 p-3.5 rounded-2xl glass-panel min-h-[300px] transition-smooth border border-dashed w-[85vw] sm:w-[280px] md:w-full flex-shrink-0 snap-center ${
                 isOver 
                   ? 'border-indigo-500/40 bg-indigo-500/[0.02] scale-[1.01]' 
                   : 'border-white/5'

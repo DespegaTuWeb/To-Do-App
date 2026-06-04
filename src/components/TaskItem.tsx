@@ -36,12 +36,21 @@ export default function TaskItem({
   const [isExpanded, setIsExpanded] = useState(false);
   const [descText, setDescText] = useState(task.nota || '');
   const editInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mouseDownTargetRef = useRef<EventTarget | null>(null);
 
   // Sincronizar descText si la nota cambia externamente
   useEffect(() => {
     setDescText(task.nota || '');
   }, [task.nota]);
+
+  // Ajustar altura del textarea de forma dinámica
+  useEffect(() => {
+    if (isExpanded && textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [isExpanded, descText]);
 
   const handleSaveDesc = async () => {
     const trimmed = descText.trim() || null;
@@ -219,6 +228,10 @@ export default function TaskItem({
             ) : (
               <div className="flex items-baseline gap-2 min-w-0 relative">
                 <span
+                  onMouseEnter={() => onDragDisableChange?.(true)}
+                  onMouseLeave={() => onDragDisableChange?.(false)}
+                  onTouchStart={() => onDragDisableChange?.(true)}
+                  onTouchEnd={() => onDragDisableChange?.(false)}
                   className={`text-xs md:text-sm font-semibold truncate transition-smooth select-text ${
                     task.completado ? 'line-through text-luxury-muted' : 'text-luxury-primary hover:text-indigo-500'
                   }`}
@@ -237,7 +250,11 @@ export default function TaskItem({
               <div className="flex items-center gap-2.5 flex-wrap mt-0.5 w-full">
                 {categoryName && (
                   <span
-                    className="text-[9px] font-semibold px-2 py-0.5 rounded-full border"
+                    onMouseEnter={() => onDragDisableChange?.(true)}
+                    onMouseLeave={() => onDragDisableChange?.(false)}
+                    onTouchStart={() => onDragDisableChange?.(true)}
+                    onTouchEnd={() => onDragDisableChange?.(false)}
+                    className="text-[9px] font-semibold px-2 py-0.5 rounded-full border select-text"
                     style={{
                       borderColor: `${categoryColor}25`,
                       color: categoryColor,
@@ -251,7 +268,11 @@ export default function TaskItem({
                 {task.fecha_limite && !isExpanded && (
                   <button
                     onClick={() => setShowCalendarModal(true)}
-                    className={`flex items-center gap-1 text-[10px] hover:text-luxury-primary transition-smooth bg-indigo-500/5 hover:bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/10 cursor-pointer ${
+                    onMouseEnter={() => onDragDisableChange?.(true)}
+                    onMouseLeave={() => onDragDisableChange?.(false)}
+                    onTouchStart={() => onDragDisableChange?.(true)}
+                    onTouchEnd={() => onDragDisableChange?.(false)}
+                    className={`flex items-center gap-1 text-[10px] hover:text-luxury-primary transition-smooth bg-indigo-500/5 hover:bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/10 cursor-pointer select-text ${
                       isOverdue ? 'text-rose-500 border-rose-500/20 font-semibold' : 'text-luxury-secondary'
                     }`}
                     title="Cambiar fecha límite"
@@ -331,8 +352,13 @@ export default function TaskItem({
           <div className="flex flex-col gap-1.5">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Descripción</span>
             <textarea
+              ref={textareaRef}
               value={descText}
-              onChange={(e) => setDescText(e.target.value)}
+              onChange={(e) => {
+                setDescText(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
               onBlur={() => {
                 handleSaveDesc();
                 onDragDisableChange?.(false);
@@ -343,7 +369,7 @@ export default function TaskItem({
               placeholder="Añadir una descripción..."
               draggable={false}
               onDragStart={(e) => e.stopPropagation()}
-              className="w-full min-h-[60px] border border-slate-200/80 dark:border-white/20 bg-white dark:bg-white/10 text-slate-800 dark:text-slate-200 text-xs focus:outline-none focus:border-indigo-500/50 dark:focus:bg-white/15 rounded-xl p-2.5 resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500 leading-relaxed font-normal transition-smooth shadow-sm"
+              className="w-full min-h-[60px] border border-slate-200/80 dark:border-white/20 bg-white dark:bg-white/10 text-slate-800 dark:text-slate-200 text-xs focus:outline-none focus:border-indigo-500/50 dark:focus:bg-white/15 rounded-xl p-2.5 resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500 leading-relaxed font-normal transition-smooth shadow-sm overflow-hidden"
             />
           </div>
 
@@ -354,7 +380,11 @@ export default function TaskItem({
                 e.stopPropagation();
                 setShowCalendarModal(true);
               }}
-              className="flex flex-col gap-0.5 cursor-pointer hover:bg-white/5 p-1 -m-1 rounded-lg transition-smooth"
+              onMouseEnter={() => onDragDisableChange?.(true)}
+              onMouseLeave={() => onDragDisableChange?.(false)}
+              onTouchStart={() => onDragDisableChange?.(true)}
+              onTouchEnd={() => onDragDisableChange?.(false)}
+              className="flex flex-col gap-0.5 cursor-pointer hover:bg-white/5 p-1 -m-1 rounded-lg transition-smooth select-text"
               title="Haga clic para cambiar fecha límite"
             >
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Fecha Límite</span>

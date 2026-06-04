@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { List, CalendarRange, Loader2, Command, Sun, Moon, LayoutGrid, LogOut, Clipboard, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { List, CalendarRange, Loader2, Command, Sun, Moon, LayoutGrid, LogOut, Clipboard, Check, Users } from 'lucide-react';
 import { supabase, Categoria, Pendiente } from '../lib/supabase';
 import CategoryTabs from '../components/CategoryTabs';
 import QuickInput from '../components/QuickInput';
@@ -11,6 +11,7 @@ import TaskVisualView from '../components/TaskVisualView';
 import TaskDetailModal from '../components/TaskDetailModal';
 import AuthScreen from '../components/AuthScreen';
 import ConfirmModal from '../components/ConfirmModal';
+import ShareModal from '../components/ShareModal';
 import { User } from '@supabase/supabase-js';
 
 // Paleta de colores premium para nuevas categorías
@@ -63,6 +64,7 @@ const generateUUID = () => {
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
+  const lastLoadedUserIdRef = useRef<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [categories, setCategories] = useState<Categoria[]>([]);
   const [tasks, setTasks] = useState<Pendiente[]>([]);
@@ -79,6 +81,9 @@ export default function Home() {
   const [lastDeletedTask, setLastDeletedTask] = useState<Pendiente | null>(null);
   const [activeGroupName, setActiveGroupName] = useState<string | null>(null);
   const [activeGroupColor, setActiveGroupColor] = useState<string | null>(null);
+  const [sharedCategoryIds, setSharedCategoryIds] = useState<string[]>([]);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const isInitialLoadRef = useRef(true);
 
   // Al cambiar de categoría activa, reiniciar el grupo activo
   useEffect(() => {
@@ -210,6 +215,17 @@ export default function Home() {
     };
   }, []);
 
+  // Inicializar polyfill de drag and drop en móviles/pantallas táctiles
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      import('mobile-drag-drop').then(({ polyfill }) => {
+        polyfill({
+          holdToDrag: 200, // 200ms para no entorpecer el scroll nativo en móvil
+        });
+      });
+    }
+  }, []);
+
   // Efecto para inicializar el tema
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -245,84 +261,139 @@ export default function Home() {
     }
   };
 
-  // Carga inicial de datos
-  useEffect(() => {
-    async function loadData() {
-      if (!user) return;
-      try {
-        setIsLoading(true);
-        setErrorMessage(null);
-
-        // Fetch Categorías
-        const { data: catsData, error: catsError } = await supabase
-          .from('categorias')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true });
-
-        if (catsError) throw catsError;
-
-        // Fetch Pendientes
-        const { data: tasksData, error: tasksError } = await supabase
-          .from('pendientes')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        if (tasksError) throw tasksError;
-
-        const loadedCats = catsData || [];
-        if (typeof window !== 'undefined') {
-          const storedOrder = localStorage.getItem(`category_order_${user.id}`);
-          if (storedOrder) {
-            try {
-              const ids = JSON.parse(storedOrder) as string[];
-              loadedCats.sort((a, b) => {
-                const idxA = ids.indexOf(a.id);
-                const idxB = ids.indexOf(b.id);
-                if (idxA === -1 && idxB === -1) return 0;
-                if (idxA === -1) return 1;
-                if (idxB === -1) return -1;
-                return idxA - idxB;
-              });
-            } catch (e) {
-              console.error('Error parseando category_order:', e);
-            }
-          }
-        }
-        const loadedTasks = tasksData || [];
-        if (typeof window !== 'undefined') {
-          const storedTaskOrder = localStorage.getItem(`task_order_${user.id}`);
-          if (storedTaskOrder) {
-            try {
-              const ids = JSON.parse(storedTaskOrder) as string[];
-              loadedTasks.sort((a, b) => {
-                const idxA = ids.indexOf(a.id);
-                const idxB = ids.indexOf(b.id);
-                if (idxA === -1 && idxB === -1) return 0;
-                if (idxA === -1) return 1;
-                if (idxB === -1) return -1;
-                return idxA - idxB;
-              });
-            } catch (e) {
-              console.error('Error parseando task_order:', e);
-            }
-          }
-        }
-        setCategories(loadedCats);
-        setTasks(loadedTasks);
-      } catch (err) {
-        console.error('Error cargando datos de Supabase:', err);
-        setErrorMessage(
-          'No se pudo conectar con Supabase. Verifica tus variables de entorno (.env.local) o las tablas SQL.'
-        );
-      } finally {
-        setIsLoading(false);
-      }
+  // Carga de datos usando useCallback para poder invocarla desde suscripciones en tiempo real
+  const loadData = useCallback(async (force = false) => {
+    if (!user) {
+      lastLoadedUserIdRef.current = null;
+      return;
     }
+    // Evitar recargar si ya cargó para este usuario y no es una recarga forzada
+    if (!force && lastLoadedUserIdRef.current === user.id) return;
 
-    loadData();
+    try {
+      if (isInitialLoadRef.current) {
+        setIsLoading(true);
+        isInitialLoadRef.current = false;
+      }
+      setErrorMessage(null);
+
+      // Fetch Categorías (sin filtro user_id, RLS retornará propias y compartidas)
+      const { data: catsData, error: catsError } = await supabase
+        .from('categorias')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (catsError) throw catsError;
+
+      // Fetch Pendientes (sin filtro user_id, RLS retornará propias y compartidas)
+      const { data: tasksData, error: tasksError } = await supabase
+        .from('pendientes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (tasksError) throw tasksError;
+
+      // Fetch IDs de categorías compartidas asociadas a este usuario
+      const { data: sharedData, error: sharedError } = await supabase
+        .from('categorias_compartidas')
+        .select('categoria_id');
+
+      if (!sharedError && sharedData) {
+        const ids = sharedData.map((d) => d.categoria_id);
+        setSharedCategoryIds(ids);
+      }
+
+      const loadedCats = catsData || [];
+      if (typeof window !== 'undefined') {
+        const storedOrder = localStorage.getItem(`category_order_${user.id}`);
+        if (storedOrder) {
+          try {
+            const ids = JSON.parse(storedOrder) as string[];
+            loadedCats.sort((a, b) => {
+              const idxA = ids.indexOf(a.id);
+              const idxB = ids.indexOf(b.id);
+              if (idxA === -1 && idxB === -1) return 0;
+              if (idxA === -1) return 1;
+              if (idxB === -1) return -1;
+              return idxA - idxB;
+            });
+          } catch (e) {
+            console.error('Error parseando category_order:', e);
+          }
+        }
+      }
+
+      const loadedTasks = tasksData || [];
+      if (typeof window !== 'undefined') {
+        const storedTaskOrder = localStorage.getItem(`task_order_${user.id}`);
+        if (storedTaskOrder) {
+          try {
+            const ids = JSON.parse(storedTaskOrder) as string[];
+            loadedTasks.sort((a, b) => {
+              const idxA = ids.indexOf(a.id);
+              const idxB = ids.indexOf(b.id);
+              if (idxA === -1 && idxB === -1) return 0;
+              if (idxA === -1) return 1;
+              if (idxB === -1) return -1;
+              return idxA - idxB;
+            });
+          } catch (e) {
+            console.error('Error parseando task_order:', e);
+          }
+        }
+      }
+
+      setCategories(loadedCats);
+      setTasks(loadedTasks);
+      lastLoadedUserIdRef.current = user.id;
+    } catch (err) {
+      console.error('Error cargando datos de Supabase:', err);
+      setErrorMessage(
+        'No se pudo conectar con Supabase. Verifica tus variables de entorno (.env.local) o las tablas SQL.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
+
+  // Carga inicial
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Suscripción Realtime a cambios en Supabase
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('realtime_collaborative_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pendientes' },
+        () => {
+          loadData(true); // Recarga silenciosa al haber cambios de tareas
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categorias' },
+        () => {
+          loadData(true); // Recarga silenciosa al haber cambios de categorías
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'categorias_compartidas' },
+        () => {
+          loadData(true); // Recarga silenciosa al cambiar invitaciones
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, loadData]);
 
   // Curar colores de categorías duplicados o planos automáticamente
   useEffect(() => {
@@ -629,6 +700,90 @@ export default function Home() {
     }
   };
 
+  // Promover una subcategoría (grupo visual) a categoría de primer nivel (nueva pestaña)
+  const handlePromoteGroupToCategory = async (groupName: string) => {
+    if (!user) return;
+    try {
+      const definitionTask = tasks.find(t => t.es_grupo && (t.grupo_nombre === groupName || t.titulo === groupName));
+      if (!definitionTask) return;
+
+      const previousTasks = [...tasks];
+      const previousCategories = [...categories];
+
+      const newCatId = generateUUID();
+      const finalColor = definitionTask.grupo_color || '#8b5cf6'; // Mantener color del grupo o usar violeta
+
+      const newCat: Categoria = {
+        id: newCatId,
+        created_at: new Date().toISOString(),
+        nombre: groupName,
+        color: finalColor,
+        user_id: user.id
+      };
+
+      // 1. Agregar la nueva categoría localmente
+      setCategories((prev) => [...prev, newCat]);
+
+      // 2. Insertar la nueva categoría en Supabase
+      const { error: catError } = await supabase
+        .from('categorias')
+        .insert([{
+          id: newCatId,
+          nombre: groupName,
+          color: finalColor,
+          user_id: user.id
+        }]);
+
+      if (catError) {
+        setCategories(previousCategories);
+        throw catError;
+      }
+
+      // 3. Actualizar optimistamente las tareas (mover las tareas hijas a la nueva categoría y borrar la definición de grupo)
+      setTasks(prev => prev
+        .filter(t => t.id !== definitionTask.id) // Eliminar la definición de grupo
+        .map(t => {
+          if (t.grupo_nombre === groupName) {
+            return { ...t, categoria_id: newCatId, grupo_nombre: null, grupo_color: null };
+          }
+          return t;
+        })
+      );
+
+      // 4. Eliminar de Supabase la tarea definidora de grupo
+      const { error: deleteError } = await supabase
+        .from('pendientes')
+        .delete()
+        .eq('id', definitionTask.id)
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        setTasks(previousTasks);
+        setCategories(previousCategories);
+        throw deleteError;
+      }
+
+      // 5. Mover en Supabase los pendientes del grupo a la nueva categoría y limpiar su grupo
+      const { error: tasksError } = await supabase
+        .from('pendientes')
+        .update({ categoria_id: newCatId, grupo_nombre: null, grupo_color: null })
+        .eq('grupo_nombre', groupName)
+        .eq('user_id', user.id);
+
+      if (tasksError) {
+        setTasks(previousTasks);
+        setCategories(previousCategories);
+        throw tasksError;
+      }
+
+      setToastMessage(`Subcategoría "${groupName}" promovida a pestaña principal.`);
+      setActiveCategoryId(newCatId);
+    } catch (err) {
+      console.error('Error al promover subcategoría:', err);
+      alert('No se pudo promover la subcategoría.');
+    }
+  };
+
   // Mover una tarea o subcategoría (grupo) completa a otra categoría (Drag and Drop)
   const handleMoveTaskOrGroup = async (taskId: string, targetCategoryId: string | null) => {
     if (!user) return;
@@ -917,6 +1072,15 @@ export default function Home() {
               <span className="max-sm:hidden">Visual</span>
             </button>
           </div>
+
+          {/* Botón Compartir */}
+          <button
+            onClick={() => setIsShareOpen(true)}
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-smooth cursor-pointer glass-panel border-white/5 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 glass-panel-hover"
+            title="Compartir Categoría"
+          >
+            <Users className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
@@ -937,7 +1101,7 @@ export default function Home() {
       {isLoading ? (
         <div className="flex-1 flex flex-col items-center justify-center py-24 gap-3">
           <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
-          <span className="text-xs text-slate-500 font-medium">Inicializando Task OS...</span>
+          <span className="text-xs text-slate-500 font-medium">Inicializando Keago...</span>
         </div>
       ) : (
         <main className="flex flex-col gap-6 flex-1">
@@ -963,6 +1127,7 @@ export default function Home() {
               <CategoryTabs
                 categories={categories}
                 activeCategoryId={activeCategoryId}
+                sharedCategoryIds={sharedCategoryIds}
                 onSelectCategory={setActiveCategoryId}
                 onCreateCategory={handleCreateCategory}
                 onRenameCategory={handleRenameCategory}
@@ -992,6 +1157,7 @@ export default function Home() {
                   setActiveGroupColor(color);
                 }}
                 onConvertGroupToTask={handleConvertGroupToTask}
+                onPromoteGroupToCategory={handlePromoteGroupToCategory}
               />
             ) : viewMode === 'timeline' ? (
               <TaskTimelineView
@@ -1072,6 +1238,14 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Modal para Compartir Categorías */}
+      <ShareModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        categories={categories}
+        currentUserId={user.id}
+      />
 
       {/* Confirmación para eliminar categoría */}
       {deletingCategoryId && (

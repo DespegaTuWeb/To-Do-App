@@ -16,6 +16,14 @@ export interface Categoria {
   user_id?: string;
 }
 
+export interface CategoriaCompartida {
+  id: string;
+  created_at: string;
+  categoria_id: string;
+  email_usuario: string;
+  owner_id?: string;
+}
+
 export interface Pendiente {
   id: string;
   created_at: string;

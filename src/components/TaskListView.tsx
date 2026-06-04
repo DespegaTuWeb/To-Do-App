@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Sparkles, Folder, Plus, Undo2, ListTree } from 'lucide-react';
+import { ChevronDown, ChevronRight, Sparkles, Folder, Plus, Undo2, ListTree, FolderPlus } from 'lucide-react';
 import { Pendiente, Categoria } from '../lib/supabase';
 import { getLocalDateString } from '../lib/utils';
 import TaskItem from './TaskItem';
@@ -33,6 +33,7 @@ interface TaskListViewProps {
   activeGroupName?: string | null;
   onSelectGroup?: (name: string | null, color: string | null) => void;
   onConvertGroupToTask?: (groupName: string) => Promise<void>;
+  onPromoteGroupToCategory?: (groupName: string) => Promise<void>;
 }
 
 export default function TaskListView({
@@ -48,6 +49,7 @@ export default function TaskListView({
   activeGroupName,
   onSelectGroup,
   onConvertGroupToTask,
+  onPromoteGroupToCategory,
 }: TaskListViewProps) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -255,6 +257,20 @@ export default function TaskListView({
                   </button>
 
                   <div className="flex items-center gap-2">
+                    {/* Botón para promover subcategoría a Categoría principal */}
+                    {groupName !== 'General' && onPromoteGroupToCategory && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onPromoteGroupToCategory(groupName);
+                        }}
+                        className="p-1 text-slate-500 hover:text-indigo-400 hover:bg-white/5 rounded transition-smooth cursor-pointer"
+                        title="Promover a pestaña de Categoría"
+                      >
+                        <FolderPlus className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
                     {/* Botón para convertir subcategoría de vuelta a tarea normal */}
                     {groupName !== 'General' && onConvertGroupToTask && (
                       <button

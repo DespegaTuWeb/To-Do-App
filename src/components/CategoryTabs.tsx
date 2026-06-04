@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, X, Inbox, GripVertical, ArrowUpDown } from 'lucide-react';
+import { Plus, X, Inbox, GripVertical, ArrowUpDown, Users } from 'lucide-react';
 import { Categoria } from '../lib/supabase';
 import ContextMenu from './ContextMenu';
 
 interface CategoryTabsProps {
   categories: Categoria[];
   activeCategoryId: string | null;
+  sharedCategoryIds?: string[];
   onSelectCategory: (id: string | null) => void;
   onCreateCategory: (nombre: string) => Promise<void>;
   onRenameCategory: (id: string, nuevoNombre: string) => Promise<void>;
@@ -25,6 +26,7 @@ export default function CategoryTabs({
   onDeleteCategory,
   onReorderCategories,
   onDropTaskOrGroup,
+  sharedCategoryIds = [],
 }: CategoryTabsProps) {
   // Estado para la creación inline de categoría
   const [isAdding, setIsAdding] = useState(false);
@@ -199,7 +201,7 @@ export default function CategoryTabs({
 
   return (
     <div className="relative w-full">
-      <div className="flex flex-wrap items-center gap-2 py-2">
+      <div className="flex overflow-x-auto no-scrollbar items-center gap-2 py-2 flex-nowrap md:flex-wrap w-full">
         {/* Pestaña Inbox (Fija) */}
         <button
           onClick={() => onSelectCategory(null)}
@@ -246,6 +248,7 @@ export default function CategoryTabs({
             <div
               key={cat.id}
               draggable
+              onDragStart={(e) => handleDragStart(e, cat.id)}
               onDragOver={(e) => handleDragOver(e, cat.id)}
               onDragLeave={handleDragLeaveTab}
               onDragEnd={handleDragEnd}
@@ -278,7 +281,12 @@ export default function CategoryTabs({
                   className="w-1.5 h-1.5 rounded-full transition-transform"
                   style={{ backgroundColor: cat.color || '#3b82f6' }}
                 />
-                {cat.nombre}
+                <span className="flex items-center gap-1">
+                  {cat.nombre}
+                  {sharedCategoryIds.includes(cat.id) && (
+                    <Users className={`w-3 h-3 ${isActive ? 'text-slate-700' : 'text-slate-400'} opacity-75`} />
+                  )}
+                </span>
               </button>
             </div>
           );
