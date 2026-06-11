@@ -1084,7 +1084,14 @@ export default function Home() {
     const previousCats = [...categories];
     const previousTasks = [...tasks];
 
-    // Actualización optimista: quitar categoría y sus tareas locales (on delete cascade)
+    // Buscar la categoría que se va a eliminar
+    const catToDelete = categories.find((c) => c.id === id);
+    if (!catToDelete) return;
+
+    // Verificar si es una categoría compartida donde el usuario es invitado
+    const isShared = !!(catToDelete.user_id && catToDelete.user_id !== user.id);
+
+    // Actualización optimista: quitar la categoría y sus tareas del estado local
     setCategories((prev) => prev.filter((c) => c.id !== id));
     setTasks((prev) => prev.filter((t) => t.categoria_id !== id));
 
@@ -1094,20 +1101,56 @@ export default function Home() {
     }
 
     try {
-      const { error } = await supabase
-        .from('categorias')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
+      if (isShared) {
+        // Caso compartido: El invitado "sale" de la categoría eliminando su invitación/colaboración
+        const { error } = await supabase
+          .from('categorias_compartidas')
+          .delete()
+          .eq('categoria_id', id)
+          .eq('email_usuario', user.email?.trim().toLowerCase() || '');
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Caso propio: Primero eliminamos sus tareas asociadas para evitar conflictos de clave foránea
+        const { error: tasksError } = await supabase
+          .from('pendientes')
+          .delete()
+          .eq('categoria_id', id)
+          .eq('user_id', user.id);
+
+        if (tasksError) throw tasksError;
+
+        // Luego eliminamos la categoría de la tabla categorias
+        const { error: catError } = await supabase
+          .from('categorias')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', user.id);
+
+        if (catError) throw catError;
+      }
+
+      // Limpiar también el category_order del localStorage
+      if (typeof window !== 'undefined') {
+        const storedOrder = safeLocalStorage.getItem(`category_order_${user.id}`);
+        if (storedOrder) {
+          try {
+            const ids = JSON.parse(storedOrder) as string[];
+            const newIds = ids.filter((catId) => catId !== id);
+            safeLocalStorage.setItem(`category_order_${user.id}`, JSON.stringify(newIds));
+          } catch (e) {
+            console.error('Error actualizando category_order en localStorage:', e);
+          }
+        }
+      }
     } catch (err) {
-      console.error('Error eliminando categoría:', err);
+      console.error('Error eliminando/abandonando categoría:', err);
       setCategories(previousCats);
       setTasks(previousTasks);
       alert('No se pudo eliminar la categoría.');
     }
   };
+
 
   // Convertir categoría en una subcategoría de otra
   const handleConvertToSubcategory = async (sourceId: string, targetParentId: string | null) => {

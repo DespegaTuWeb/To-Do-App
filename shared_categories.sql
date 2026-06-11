@@ -35,6 +35,26 @@ USING (
   auth.uid() = owner_id
 );
 
+-- Permitir a invitados aceptar/modificar su propio estado de invitación
+CREATE POLICY "Actualización de compartidos para invitados"
+ON categorias_compartidas
+FOR UPDATE
+USING (
+  lower(auth.jwt()->>'email') = lower(email_usuario)
+)
+WITH CHECK (
+  lower(auth.jwt()->>'email') = lower(email_usuario)
+);
+
+-- Permitir a invitados rechazar o salir de una categoría compartida
+CREATE POLICY "Eliminación de compartidos para invitados"
+ON categorias_compartidas
+FOR DELETE
+USING (
+  lower(auth.jwt()->>'email') = lower(email_usuario)
+);
+
+
 -- 3. Políticas para Categorías (Evita recursión ya que categorias_compartidas no consulta categorias)
 DROP POLICY IF EXISTS "Permitir todo a dueños de categorías" ON categorias;
 DROP POLICY IF EXISTS "Permitir lectura a dueños y usuarios compartidos" ON categorias;
