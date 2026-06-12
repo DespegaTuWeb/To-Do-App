@@ -12,6 +12,9 @@ import TaskDetailModal from '../components/TaskDetailModal';
 import AuthScreen from '../components/AuthScreen';
 import ConfirmModal from '../components/ConfirmModal';
 import ShareModal from '../components/ShareModal';
+import ProductivityChat from '../components/ProductivityChat';
+import AdminModal from '../components/AdminModal';
+import { Sparkles } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import 'mobile-drag-drop/default.css';
 
@@ -109,7 +112,10 @@ export default function Home() {
   const [activeGroupColor, setActiveGroupColor] = useState<string | null>(null);
   const [sharedCategoryIds, setSharedCategoryIds] = useState<string[]>([]);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [hasPendingInvites, setHasPendingInvites] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const isInitialLoadRef = useRef(true);
 
   // Al cambiar de categoría activa, reiniciar el grupo activo
@@ -358,6 +364,41 @@ export default function Home() {
         }
       }
 
+      // Consultar perfil de usuario para validar Premium
+      const { data: profileData, error: profileError } = await supabase
+        .from('perfiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!profileError && profileData) {
+        let hasPremium = false;
+        if (profileData.is_premium) {
+          if (profileData.premium_valido_hasta) {
+            const expiry = new Date(profileData.premium_valido_hasta);
+            hasPremium = expiry > new Date();
+          } else {
+            hasPremium = true; // Premium permanente
+          }
+        }
+        setIsPremium(hasPremium);
+      } else {
+        // Si no existe el perfil (por ejemplo, usuarios antiguos creados antes de la tabla/trigger)
+        // se crea e inicializa. El admin es premium por defecto.
+        const isUserAdmin = user.email?.trim().toLowerCase() === 'sebastianjimmysolo@gmail.com';
+        const { data: newProfile, error: insertError } = await supabase
+          .from('perfiles')
+          .insert([{ id: user.id, email: user.email, is_premium: isUserAdmin }])
+          .select()
+          .single();
+
+        if (!insertError && newProfile) {
+          setIsPremium(newProfile.is_premium);
+        } else {
+          setIsPremium(false);
+        }
+      }
+
       const loadedCats = catsData || [];
       // Filtrar para mostrar solo las categorías propias o las compartidas y ACEPTADAS
       const visibleCats = loadedCats.filter(cat => 
@@ -508,7 +549,9 @@ export default function Home() {
     titulo: string, 
     fechaLimite: string | null, 
     grupoNombre?: string | null, 
-    grupoColor?: string | null
+    grupoColor?: string | null,
+    categoriaId?: string | null,
+    esGrupo?: boolean
   ) => {
     if (!user) return;
     const tempId = generateUUID();
@@ -519,10 +562,11 @@ export default function Home() {
       nota: null,
       fecha_limite: fechaLimite,
       completado: false,
-      categoria_id: activeCategoryId, // Si estamos en Inbox es null, si no, toma la pestaña activa
+      categoria_id: categoriaId !== undefined ? categoriaId : activeCategoryId, // Si se especifica, usarlo; de lo contrario, la pestaña activa
       user_id: user.id,
       grupo_nombre: grupoNombre || null,
       grupo_color: grupoColor || null,
+      es_grupo: esGrupo || false,
     };
 
     // Actualización optimista de estado local
@@ -539,6 +583,7 @@ export default function Home() {
           user_id: user.id,
           grupo_nombre: newTask.grupo_nombre,
           grupo_color: newTask.grupo_color,
+          es_grupo: newTask.es_grupo,
         }])
         .select()
         .single();
@@ -1494,6 +1539,28 @@ export default function Home() {
             <Moon className="w-5 h-5 text-indigo-600 animate-check-pop" />
           )}
         </button>
+
+        {/* Botón Flotante de Panel de Administración (Solo para el Admin) */}
+        {user?.email?.trim().toLowerCase() === 'sebastianjimmysolo@gmail.com' && (
+          <button
+            onClick={() => setIsAdminOpen(true)}
+            className="w-11 h-11 rounded-full glass-panel glass-panel-hover flex items-center justify-center text-slate-400 hover:text-indigo-400 shadow-2xl transition-smooth cursor-pointer border border-white/10 animate-check-pop"
+            title="Panel de Administración Premium"
+          >
+            <Users className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Botón Flotante de Chat AI (Solo para Premium) */}
+        {isPremium && (
+          <button
+            onClick={() => setIsChatOpen(true)}
+            className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-2xl hover:scale-[1.08] hover:shadow-indigo-600/30 transition-smooth cursor-pointer border border-white/10 animate-check-pop"
+            title="Preguntar a Keago AI"
+          >
+            <Sparkles className="w-4.5 h-4.5 animate-pulse" />
+          </button>
+        )}
       </div>
 
       {/* Toast de Notificación Flotante */}
@@ -1622,6 +1689,35 @@ export default function Home() {
             {completedCount}/{totalCount}
           </span>
         </div>
+      )}
+
+      {/* Asistente de Productividad Chat AI */}
+      {isPremium && (
+        <ProductivityChat
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          tasks={tasks}
+          categories={categories}
+          currentUser={user}
+          onCreateTask={async (titulo, catId, grupo, esGrupo) => {
+            await handleCreateTask(titulo, null, grupo, '#8b5cf6', catId, esGrupo);
+          }}
+          onToggleTask={handleToggleTask}
+          onDeleteTask={handleDeleteTask}
+          onCreateCategory={handleCreateCategory}
+        />
+      )}
+
+      {/* Modal de Administración Premium (Solo para el Admin) */}
+      {isAdminOpen && user?.email?.trim().toLowerCase() === 'sebastianjimmysolo@gmail.com' && (
+        <AdminModal
+          isOpen={isAdminOpen}
+          onClose={() => setIsAdminOpen(false)}
+          currentUserId={user?.id || ''}
+          onRefreshData={async () => {
+            await loadData(true);
+          }}
+        />
       )}
     </div>
   );
