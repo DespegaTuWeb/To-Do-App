@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Sparkles, X, Send, Loader2, Bot, User, ClipboardList } from 'lucide-react';
+import { Sparkles, X, Send, Loader2, Bot, User, ClipboardList, Mic, MicOff, Volume2, VolumeX, Square } from 'lucide-react';
 import { supabase, Categoria, Pendiente } from '../lib/supabase';
 
 interface Message {
@@ -45,9 +45,24 @@ export default function ProductivityChat({
   const [width, setWidth] = useState(420);
   const [isResizing, setIsResizing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Estados de voz (Speech-to-Text y Text-to-Speech)
+  const [isListening, setIsListening] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('keago_coach_audio_enabled') === 'true';
+      } catch (e) {
+        console.warn('LocalStorage no disponible:', e);
+      }
+    }
+    return false;
+  });
+  const [currentlyPlayingIndex, setCurrentlyPlayingIndex] = useState<number | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Auto-scroll al final del chat
   useEffect(() => {
@@ -112,6 +127,146 @@ export default function ProductivityChat({
       document.body.style.userSelect = '';
     };
   }, [isResizing]);
+
+  // Guardar preferencia de audio
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('keago_coach_audio_enabled', String(isAudioEnabled));
+      } catch (e) {
+        console.warn('Error guardando preferencia de audio:', e);
+      }
+    }
+  }, [isAudioEnabled]);
+
+  // Limpieza y control de APIs de voz al cerrar o desmontar
+  useEffect(() => {
+    if (!isOpen) {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      setCurrentlyPlayingIndex(null);
+      if (isListening && recognitionRef.current) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+      }
+    }
+  }, [isOpen, isListening]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  // Lógica de Dictado por Voz (Speech-to-Text)
+  const toggleListening = () => {
+    if (typeof window === 'undefined') return;
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Tu navegador no soporta el reconocimiento de voz nativo. Te sugerimos usar Google Chrome o Microsoft Edge.');
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+    } else {
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'es-ES';
+        recognition.interimResults = true;
+        recognition.continuous = false;
+
+        recognition.onstart = () => {
+          setIsListening(true);
+        };
+
+        recognition.onresult = (event: any) => {
+          const transcript = Array.from(event.results)
+            .map((result: any) => result[0])
+            .map((result: any) => result.transcript)
+            .join('');
+
+          setInputValue(transcript);
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error('Error de reconocimiento de voz:', event.error);
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+      } catch (err) {
+        console.error('Fallo al iniciar el reconocimiento de voz:', err);
+        setIsListening(false);
+      }
+    }
+  };
+
+  // Lógica de Lectura de Respuestas (Text-to-Speech)
+  const speakText = (text: string, index: number) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    // Si ya se está reproduciendo este mensaje, cancelarlo
+    if (currentlyPlayingIndex === index) {
+      window.speechSynthesis.cancel();
+      setCurrentlyPlayingIndex(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    // Limpiar markdown del texto para lectura limpia
+    const cleanText = text
+      .replace(/[*#_~`\[\]()\-]/g, '')
+      .replace(/<[^>]*>/g, '')
+      .trim();
+
+    if (!cleanText) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'es-ES';
+
+    const voices = window.speechSynthesis.getVoices();
+    const spanishVoice = voices.find((v) => v.lang.startsWith('es-'));
+    if (spanishVoice) {
+      utterance.voice = spanishVoice;
+    }
+
+    utterance.onend = () => {
+      setCurrentlyPlayingIndex(null);
+    };
+
+    utterance.onerror = (e) => {
+      console.error('Error en SpeechSynthesis:', e);
+      setCurrentlyPlayingIndex(null);
+    };
+
+    setCurrentlyPlayingIndex(index);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Auto-lectura de nuevas respuestas de la IA
+  useEffect(() => {
+    if (messages.length === 0 || !isAudioEnabled) return;
+    const lastMsgIdx = messages.length - 1;
+    const lastMsg = messages[lastMsgIdx];
+    
+    if (lastMsg.role === 'assistant' && lastMsgIdx > 0) {
+      speakText(lastMsg.content, lastMsgIdx);
+    }
+  }, [messages.length, isAudioEnabled]);
 
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim() || isLoading) return;
@@ -496,12 +651,27 @@ export default function ProductivityChat({
             <span className="text-[9px] font-bold text-luxury-muted uppercase tracking-wider">Coach de Productividad</span>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)] hover:bg-black/5 dark:hover:bg-white/5 transition-smooth cursor-pointer"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Switch de Auto-lectura */}
+          <button
+            onClick={() => setIsAudioEnabled(prev => !prev)}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-smooth cursor-pointer ${
+              isAudioEnabled 
+                ? 'text-indigo-500 hover:text-indigo-600 bg-indigo-500/10' 
+                : 'text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)] hover:bg-black/5 dark:hover:bg-white/5'
+            }`}
+            title={isAudioEnabled ? "Auto-lectura: Activada" : "Auto-lectura: Desactivada"}
+          >
+            {isAudioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+          
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)] hover:bg-black/5 dark:hover:bg-white/5 transition-smooth cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Cuerpo de Mensajes */}
@@ -526,19 +696,40 @@ export default function ProductivityChat({
                 {isAI ? <Bot className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
               </div>
 
-              {/* Globo de mensaje */}
-              <div
-                className={`p-3 rounded-2xl text-xs md:text-sm shadow-sm ${
-                  isAI
-                    ? 'glass-panel border-white/5 text-[var(--c-text-primary)] rounded-tl-none'
-                    : 'bg-indigo-600/90 text-white rounded-tr-none border border-indigo-500/20 font-medium'
-                }`}
-              >
-                {isAI ? (
-                  <ul className="list-inside">{parseMarkdown(msg.content)}</ul>
-                ) : (
-                  <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                )}
+              {/* Globo de mensaje y controles de audio */}
+              <div className="flex flex-col gap-1 min-w-0">
+                <div
+                  className={`p-3 rounded-2xl text-xs md:text-sm shadow-sm relative group ${
+                    isAI
+                      ? 'glass-panel border-white/5 text-[var(--c-text-primary)] rounded-tl-none'
+                      : 'bg-indigo-600/90 text-white rounded-tr-none border border-indigo-500/20 font-medium'
+                  }`}
+                >
+                  {isAI ? (
+                    <ul className="list-inside">{parseMarkdown(msg.content)}</ul>
+                  ) : (
+                    <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                  )}
+                  
+                  {/* Botón de reproducción de audio individual (solo para la IA) */}
+                  {isAI && (
+                    <button
+                      onClick={() => speakText(msg.content, index)}
+                      className={`absolute -right-7 top-1 p-1 rounded-md transition-smooth cursor-pointer bg-slate-500/5 hover:bg-slate-500/20 border border-slate-500/10 ${
+                        currentlyPlayingIndex === index 
+                          ? 'text-indigo-500 bg-indigo-500/10 border-indigo-500/25 animate-pulse' 
+                          : 'text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)]'
+                      }`}
+                      title={currentlyPlayingIndex === index ? "Detener lectura" : "Leer en voz alta"}
+                    >
+                      {currentlyPlayingIndex === index ? (
+                        <Square className="w-3 h-3 fill-indigo-500 text-indigo-500" />
+                      ) : (
+                        <Volume2 className="w-3 h-3" />
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -583,24 +774,46 @@ export default function ProductivityChat({
           <input
             ref={inputRef}
             type="text"
-            placeholder={isLoading ? 'Keago AI está pensando...' : 'Pregúntale a Keago AI...'}
+            placeholder={isLoading ? 'Keago AI está pensando...' : (isListening ? 'Escuchando tu dictado...' : 'Pregúntale a Keago AI...')}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={isLoading}
-            className="w-full glass-input pl-4 pr-11 py-3 rounded-xl text-xs md:text-sm placeholder:text-luxury-muted/50 focus:ring-1 focus:ring-indigo-500/20 disabled:opacity-60"
+            className="w-full glass-input pl-4 pr-20 py-3 rounded-xl text-xs md:text-sm placeholder:text-luxury-muted/50 focus:ring-1 focus:ring-indigo-500/20 disabled:opacity-60"
           />
-          <button
-            type="submit"
-            disabled={!inputValue.trim() || isLoading}
-            className="absolute right-1.5 p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-500/10 text-white disabled:text-slate-500 rounded-lg transition-smooth cursor-pointer disabled:cursor-not-allowed shadow-md shadow-indigo-600/10"
-            title="Enviar mensaje"
-          >
-            {isLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Send className="w-3.5 h-3.5" />
-            )}
-          </button>
+          <div className="absolute right-1.5 flex items-center gap-1.5">
+            {/* Botón de Micrófono (STT) */}
+            <button
+              type="button"
+              onClick={toggleListening}
+              disabled={isLoading}
+              className={`p-2 rounded-lg transition-smooth cursor-pointer hover:bg-slate-500/10 ${
+                isListening 
+                  ? 'bg-red-500/10 text-red-500 border border-red-500/25 animate-pulse' 
+                  : 'text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)]'
+              }`}
+              title={isListening ? "Detener dictado" : "Dictar mensaje"}
+            >
+              {isListening ? (
+                <MicOff className="w-3.5 h-3.5" />
+              ) : (
+                <Mic className="w-3.5 h-3.5" />
+              )}
+            </button>
+
+            {/* Botón de Enviar */}
+            <button
+              type="submit"
+              disabled={!inputValue.trim() || isLoading}
+              className="p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-500/10 text-white disabled:text-slate-500 rounded-lg transition-smooth cursor-pointer disabled:cursor-not-allowed shadow-md shadow-indigo-600/10"
+              title="Enviar mensaje"
+            >
+              {isLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Send className="w-3.5 h-3.5" />
+              )}
+            </button>
+          </div>
         </form>
       </div>
     </div>
