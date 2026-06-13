@@ -304,7 +304,7 @@ export default function TaskCalendarView({
                           setQuickTitle('');
                         }}
                         className={`p-1 rounded-md transition-smooth hover:bg-white/5 cursor-pointer ${
-                          activeAddCell === dayStr ? 'text-rose-400' : 'text-slate-500 hover:text-white'
+                          activeAddCell === dayStr ? 'text-rose-400' : 'text-slate-400 hover:text-white'
                         }`}
                         title="Agregar tarea hoy"
                       >
@@ -353,7 +353,7 @@ export default function TaskCalendarView({
                                 e.stopPropagation();
                                 await onToggleTask(task.id, !task.completado);
                               }}
-                              className="text-slate-500 hover:text-emerald-400 cursor-pointer mt-0.5 flex-shrink-0"
+                              className="text-slate-400 hover:text-emerald-400 cursor-pointer mt-0.5 flex-shrink-0"
                             >
                               <Circle className="w-3.5 h-3.5" />
                             </button>
@@ -376,9 +376,9 @@ export default function TaskCalendarView({
                         </div>
                       ))
                     ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-xl py-6 opacity-30">
-                        <Sparkles className="w-3.5 h-3.5 text-slate-500 mb-1" />
-                        <span className="text-[9px] font-semibold italic">Libre</span>
+                      <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-xl py-6 opacity-45">
+                        <Sparkles className="w-3.5 h-3.5 text-slate-400 mb-1" />
+                        <span className="text-[9px] font-semibold italic text-slate-300">Libre</span>
                       </div>
                     )}
                   </div>
@@ -392,7 +392,7 @@ export default function TaskCalendarView({
         {activeTab === 'month' && (
           <div className="flex flex-col gap-1.5 w-full">
             {/* Encabezado columnas Lunes - Domingo */}
-            <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-extrabold text-slate-500 uppercase tracking-widest pb-1">
+            <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-extrabold text-slate-300 uppercase tracking-widest pb-1">
               {WEEKDAY_NAMES.map(name => (
                 <div key={name}>{name}</div>
               ))}
@@ -422,7 +422,7 @@ export default function TaskCalendarView({
                     } ${isCurrentMonth ? 'opacity-100' : 'opacity-35'}`}
                   >
                     {/* Número del día */}
-                    <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-400">
+                    <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-300">
                       <span className={`w-4 h-4 rounded-full flex items-center justify-center ${
                         isToday ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20' : ''
                       }`}>
@@ -434,9 +434,9 @@ export default function TaskCalendarView({
                             setActiveAddCell(activeAddCell === dayStr ? null : dayStr);
                             setQuickTitle('');
                           }}
-                          className="text-slate-600 hover:text-white transition-smooth"
+                          className="text-slate-400 hover:text-white transition-smooth cursor-pointer"
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -542,7 +542,7 @@ export default function TaskCalendarView({
                   </div>
 
                   {/* Grid miniatura */}
-                  <div className="grid grid-cols-7 gap-0.5 text-center text-[7px] font-bold text-slate-600">
+                  <div className="grid grid-cols-7 gap-0.5 text-center text-[7px] font-bold text-slate-400">
                     {WEEKDAY_NAMES.map(n => <div key={n}>{n.slice(0, 1)}</div>)}
                     
                     {days.map((day, idx) => {
@@ -591,12 +591,12 @@ export default function TaskCalendarView({
             <Layers className="w-4 h-4 text-indigo-400" />
             <h2 className="text-sm font-bold text-slate-100">Ideas Sin Fecha</h2>
           </div>
-          <span className="text-[10px] font-bold bg-white/5 px-2 py-0.5 rounded-md border border-white/5 text-slate-400">
+          <span className="text-[10px] font-bold bg-white/5 px-2 py-0.5 rounded-md border border-white/5 text-slate-200">
             {backlogTasks.length}
           </span>
         </div>
 
-        <p className="text-[10px] text-slate-400 leading-normal pl-1">
+        <p className="text-[10px] text-slate-300 leading-normal pl-1">
           💡 Arrastra tareas desde aquí al calendario para programar su fecha, o arrastra desde el calendario hasta aquí para desprogramarlas.
         </p>
 
@@ -619,7 +619,7 @@ export default function TaskCalendarView({
                       e.stopPropagation();
                       await onToggleTask(task.id, !task.completado);
                     }}
-                    className="text-slate-500 hover:text-emerald-400 cursor-pointer mt-0.5 flex-shrink-0"
+                    className="text-slate-400 hover:text-emerald-400 cursor-pointer mt-0.5 flex-shrink-0"
                   >
                     <Circle className="w-3.5 h-3.5" />
                   </button>
@@ -642,10 +642,10 @@ export default function TaskCalendarView({
               </div>
             ))
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-xl py-12 text-center opacity-40">
+            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-xl py-12 text-center opacity-55">
               <Sparkles className="w-5 h-5 text-yellow-400/80 mb-2 animate-pulse" />
-              <span className="text-xs font-semibold">Tintero limpio</span>
-              <span className="text-[10px] text-slate-400 mt-1 max-w-[150px]">
+              <span className="text-xs font-semibold text-slate-300">Tintero limpio</span>
+              <span className="text-[10px] text-slate-300 mt-1 max-w-[150px]">
                 ¡No tienes ideas sin programar!
               </span>
             </div>

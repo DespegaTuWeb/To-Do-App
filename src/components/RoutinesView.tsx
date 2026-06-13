@@ -246,8 +246,8 @@ export default function RoutinesView({
                             isConfigured
                               ? isToday
                                 ? 'bg-indigo-600 text-white font-extrabold scale-110'
-                                : 'bg-white/10 text-slate-300'
-                              : 'text-slate-600 dark:text-slate-600'
+                                : 'bg-white/10 text-slate-200'
+                              : 'text-slate-500/50 dark:text-slate-500/50'
                           }`}
                           title={isToday ? 'Hoy' : undefined}
                         >
@@ -259,11 +259,11 @@ export default function RoutinesView({
 
                   {/* Active Today Badge */}
                   {isActiveToday ? (
-                    <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 font-bold uppercase px-2 py-0.5 rounded-md tracking-wider">
+                    <span className="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-bold uppercase px-2 py-0.5 rounded-md tracking-wider">
                       Activa Hoy
                     </span>
                   ) : (
-                    <span className="text-[10px] bg-slate-500/10 text-slate-400 border border-slate-500/15 font-bold uppercase px-2 py-0.5 rounded-md tracking-wider">
+                    <span className="text-[10px] bg-slate-500/10 text-slate-300 border border-slate-500/20 font-bold uppercase px-2 py-0.5 rounded-md tracking-wider">
                       Descanso
                     </span>
                   )}
@@ -302,8 +302,8 @@ export default function RoutinesView({
                         <span
                           className={`text-xs font-medium ${
                             item.completado
-                              ? 'text-slate-500 line-through'
-                              : 'text-slate-300'
+                              ? 'text-slate-400/80 line-through'
+                              : 'text-slate-200'
                           }`}
                         >
                           {item.titulo}
@@ -311,7 +311,7 @@ export default function RoutinesView({
                       </button>
                     ))
                   ) : (
-                    <div className="text-[10px] text-slate-500 italic py-2">
+                    <div className="text-[10px] text-slate-400 italic py-2">
                       Sin subtareas. Edita la rutina para agregar pasos.
                     </div>
                   )}
@@ -464,7 +464,7 @@ export default function RoutinesView({
                         className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                            : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                            : 'text-slate-300 hover:bg-white/5 hover:text-white'
                         }`}
                       >
                         {d.label}
@@ -487,7 +487,7 @@ export default function RoutinesView({
                         <button
                           type="button"
                           onClick={() => handleRemoveExistingItem(item.id)}
-                          className="text-slate-500 hover:text-red-400 cursor-pointer"
+                          className="text-slate-400 hover:text-red-400 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -505,7 +505,7 @@ export default function RoutinesView({
                         <button
                           type="button"
                           onClick={() => handleRemoveTempItem(idx)}
-                          className="text-slate-500 hover:text-red-400 cursor-pointer"
+                          className="text-slate-400 hover:text-red-400 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -527,7 +527,7 @@ export default function RoutinesView({
                       }
                     }}
                     placeholder="Ej: Tomar Higacure, Desayunar..."
-                    className="flex-1 px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500/60 transition-smooth"
+                    className="flex-1 px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500/60 transition-smooth"
                   />
                   <button
                     type="button"
