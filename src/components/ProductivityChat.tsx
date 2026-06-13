@@ -15,10 +15,10 @@ interface ProductivityChatProps {
   tasks: Pendiente[];
   categories: Categoria[];
   currentUser: any;
-  onCreateTask: (titulo: string, categoriaId: string | null, grupo?: string | null, esGrupo?: boolean) => Promise<void>;
+  onCreateTask: (titulo: string, categoriaId: string | null, grupo?: string | null, esGrupo?: boolean) => Promise<string>;
   onToggleTask: (id: string, completado: boolean) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
-  onCreateCategory: (nombre: string) => Promise<void>;
+  onCreateCategory: (nombre: string) => Promise<string>;
 }
 
 export default function ProductivityChat({
@@ -172,138 +172,127 @@ export default function ProductivityChat({
 
       // Ejecutar las acciones inteligentes devueltas por Gemini
       if (data.actions && data.actions.length > 0) {
+        const newlyCreatedCategories: Record<string, string> = {};
+        const newlyCreatedTasks: Record<string, string> = {};
+        const executedSummaries: string[] = [];
+
         for (const action of data.actions) {
           try {
             if (action.type === 'create_category') {
               const { nombre } = action.payload;
               if (nombre) {
-                await onCreateCategory(nombre);
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    role: 'assistant',
-                    content: `✨ **Acción ejecutada**: He creado la categoría *"${nombre}"* automáticamente.`
-                  }
-                ]);
+                const catId = await onCreateCategory(nombre);
+                newlyCreatedCategories[nombre.trim().toLowerCase()] = catId;
+                executedSummaries.push(`📁 Categoría **${nombre}** creada`);
               }
             } else if (action.type === 'create_task') {
               const { titulo, categoria, es_grupo, grupo } = action.payload;
               if (titulo) {
                 let targetCatId: string | null = null;
                 if (categoria && categoria.toLowerCase() !== 'inbox' && categoria.toLowerCase() !== 'sin categoría') {
-                  const matchedCat = categories.find(
-                    (c) => c.nombre.trim().toLowerCase() === categoria.trim().toLowerCase()
-                  );
-                  if (matchedCat) {
-                    targetCatId = matchedCat.id;
+                  const localCatId = newlyCreatedCategories[categoria.trim().toLowerCase()];
+                  if (localCatId) {
+                    targetCatId = localCatId;
+                  } else {
+                    const matchedCat = categories.find(
+                      (c) => c.nombre.trim().toLowerCase() === categoria.trim().toLowerCase()
+                    );
+                    if (matchedCat) {
+                      targetCatId = matchedCat.id;
+                    }
                   }
                 }
                 
-                await onCreateTask(titulo, targetCatId, grupo || null, es_grupo || false);
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    role: 'assistant',
-                    content: `✨ **Acción ejecutada**: He creado la tarea *"${titulo}"* ${categoria ? `en la categoría *"${categoria}"*` : ''}${grupo ? ` bajo el grupo *"${grupo}"*` : ''} automáticamente.`
-                  }
-                ]);
+                const taskId = await onCreateTask(titulo, targetCatId, grupo || null, es_grupo || false);
+                newlyCreatedTasks[titulo.trim().toLowerCase()] = taskId;
+
+                let locText = `📝 Tarea **${titulo}** creada`;
+                if (categoria && categoria.toLowerCase() !== 'inbox' && categoria.toLowerCase() !== 'sin categoría') {
+                  locText += ` en *${categoria}*`;
+                  if (grupo) locText += ` > *${grupo}*`;
+                } else if (grupo) {
+                  locText += ` bajo el grupo *${grupo}*`;
+                }
+                executedSummaries.push(locText);
               }
             } else if (action.type === 'toggle_task') {
               const { titulo, completado } = action.payload;
               if (titulo) {
-                const matchedTasks = tasks.filter(
-                  (t) => t.titulo.trim().toLowerCase() === titulo.trim().toLowerCase()
-                );
-                
+                const localTaskId = newlyCreatedTasks[titulo.trim().toLowerCase()];
                 let targetTask = null;
-                if (matchedTasks.length > 0) {
-                  targetTask = matchedTasks.find((t) => t.completado !== completado) || matchedTasks[0];
+
+                if (localTaskId) {
+                  const matchedTask = tasks.find((t) => t.id === localTaskId);
+                  if (matchedTask) {
+                    targetTask = matchedTask;
+                  } else {
+                    targetTask = { id: localTaskId, titulo };
+                  }
+                } else {
+                  const matchedTasks = tasks.filter(
+                    (t) => t.titulo.trim().toLowerCase() === titulo.trim().toLowerCase()
+                  );
+                  if (matchedTasks.length > 0) {
+                    targetTask = matchedTasks.find((t) => t.completado !== completado) || matchedTasks[0];
+                  }
                 }
 
                 if (targetTask) {
                   await onToggleTask(targetTask.id, completado);
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      role: 'assistant',
-                      content: `✨ **Acción ejecutada**: He marcado como ${completado ? 'completada' : 'pendiente'} la tarea *"${targetTask.titulo}"* automáticamente.`
-                    }
-                  ]);
+                  executedSummaries.push(`${completado ? '✅' : '⏳'} Tarea **${titulo}** marcada como ${completado ? 'completada' : 'pendiente'}`);
                 } else {
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      role: 'assistant',
-                      content: `⚠️ **Acción omitida**: No encontré la tarea *"${titulo}"* para cambiar su estado.`
-                    }
-                  ]);
+                  executedSummaries.push(`⚠️ No se encontró la tarea **${titulo}** para cambiar estado`);
                 }
               }
             } else if (action.type === 'delete_task') {
               const { titulo } = action.payload;
               if (titulo) {
-                const matchedTask = tasks.find(
-                  (t) => t.titulo.trim().toLowerCase() === titulo.trim().toLowerCase()
-                );
-                if (matchedTask) {
-                  await onDeleteTask(matchedTask.id);
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      role: 'assistant',
-                      content: `✨ **Acción ejecutada**: He eliminado la tarea *"${matchedTask.titulo}"* automáticamente.`
-                    }
-                  ]);
+                const localTaskId = newlyCreatedTasks[titulo.trim().toLowerCase()];
+                let targetTask = null;
+
+                if (localTaskId) {
+                  targetTask = { id: localTaskId, titulo };
                 } else {
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      role: 'assistant',
-                      content: `⚠️ **Acción omitida**: No encontré la tarea *"${titulo}"* para eliminarla.`
-                    }
-                  ]);
+                  targetTask = tasks.find(
+                    (t) => t.titulo.trim().toLowerCase() === titulo.trim().toLowerCase()
+                  );
+                }
+
+                if (targetTask) {
+                  await onDeleteTask(targetTask.id);
+                  executedSummaries.push(`🗑️ Tarea **${targetTask.titulo}** eliminada`);
+                } else {
+                  executedSummaries.push(`⚠️ No se encontró la tarea **${titulo}** para eliminar`);
                 }
               }
             } else if (action.type === 'share_category') {
               const { categoria, email } = action.payload;
               if (categoria && email) {
                 if (!currentUser) {
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      role: 'assistant',
-                      content: `⚠️ **Acción fallida**: Debes iniciar sesión para compartir categorías.`
-                    }
-                  ]);
+                  executedSummaries.push('⚠️ Acción fallida: Debes iniciar sesión para compartir categorías');
                   continue;
                 }
                 
-                const matchedCat = categories.find(
-                  (c) => c.nombre.trim().toLowerCase() === categoria.trim().toLowerCase()
-                );
+                const localCatId = newlyCreatedCategories[categoria.trim().toLowerCase()];
+                let matchedCat = null;
+                if (localCatId) {
+                  matchedCat = { id: localCatId, nombre: categoria, user_id: currentUser.id };
+                } else {
+                  matchedCat = categories.find(
+                    (c) => c.nombre.trim().toLowerCase() === categoria.trim().toLowerCase()
+                  );
+                }
                 
                 if (matchedCat) {
                   const isOwned = !matchedCat.user_id || matchedCat.user_id === currentUser.id;
                   if (!isOwned) {
-                    setMessages((prev) => [
-                      ...prev,
-                      {
-                        role: 'assistant',
-                        content: `⚠️ **Acción fallida**: Solo el dueño de la categoría *"${matchedCat.nombre}"* puede compartirla.`
-                      }
-                    ]);
+                    executedSummaries.push(`⚠️ Acción fallida: Solo el dueño de la categoría **${matchedCat.nombre}** puede compartirla`);
                     continue;
                   }
 
                   const targetEmail = email.trim().toLowerCase();
                   if (targetEmail === currentUser.email?.trim().toLowerCase()) {
-                    setMessages((prev) => [
-                      ...prev,
-                      {
-                        role: 'assistant',
-                        content: `⚠️ **Acción omitida**: No puedes invitarte a ti mismo.`
-                      }
-                    ]);
+                    executedSummaries.push('⚠️ Acción omitida: No puedes invitarte a ti mismo');
                     continue;
                   }
 
@@ -318,46 +307,32 @@ export default function ProductivityChat({
 
                   if (error) {
                     if (error.code === '23505') {
-                      setMessages((prev) => [
-                        ...prev,
-                        {
-                          role: 'assistant',
-                          content: `ℹ️ **Información**: La categoría *"${matchedCat.nombre}"* ya estaba compartida o invitada a *"${targetEmail}"*.`
-                        }
-                      ]);
+                      executedSummaries.push(`ℹ️ La categoría **${matchedCat.nombre}** ya está compartida o invitada a **${targetEmail}**`);
                     } else {
                       throw error;
                     }
                   } else {
-                    setMessages((prev) => [
-                      ...prev,
-                      {
-                        role: 'assistant',
-                        content: `✨ **Acción ejecutada**: He enviado una invitación a *"${targetEmail}"* para compartir la categoría *"${matchedCat.nombre}"* automáticamente.`
-                      }
-                    ]);
+                    executedSummaries.push(`🤝 Invitación enviada a **${targetEmail}** para compartir **${matchedCat.nombre}**`);
                   }
                 } else {
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      role: 'assistant',
-                      content: `⚠️ **Acción omitida**: No encontré la categoría *"${categoria}"* para compartir.`
-                    }
-                  ]);
+                  executedSummaries.push(`⚠️ No se encontró la categoría **${categoria}** para compartir`);
                 }
               }
             }
           } catch (actionErr: any) {
             console.error(`Error al procesar acción ${action.type}:`, actionErr);
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: 'assistant',
-                content: `⚠️ **Error en acción**: Ocurrió un error al ejecutar la acción de tipo *"${action.type}"*: ${actionErr.message || actionErr}`
-              }
-            ]);
+            executedSummaries.push(`❌ Error al ejecutar acción (${action.type}): ${actionErr.message || actionErr}`);
           }
+        }
+
+        if (executedSummaries.length > 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              content: `✨ **Acciones completadas:**\n` + executedSummaries.map(s => `- ${s}`).join('\n')
+            }
+          ]);
         }
       }
     } catch (err: any) {

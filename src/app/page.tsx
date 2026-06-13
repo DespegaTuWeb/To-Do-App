@@ -552,8 +552,8 @@ export default function Home() {
     grupoColor?: string | null,
     categoriaId?: string | null,
     esGrupo?: boolean
-  ) => {
-    if (!user) return;
+  ): Promise<string> => {
+    if (!user) return '';
     const tempId = generateUUID();
     const newTask: Pendiente = {
       id: tempId,
@@ -594,11 +594,13 @@ export default function Home() {
       setTasks((prev) =>
         prev.map((t) => (t.id === tempId ? { ...t, id: data.id, created_at: data.created_at } : t))
       );
+      return data.id;
     } catch (err) {
       console.error('Error insertando tarea:', err);
       // Revertir estado local en caso de fallo
       setTasks((prev) => prev.filter((t) => t.id !== tempId));
       alert('Error al guardar la tarea. Revisa tu conexión.');
+      return tempId;
     }
   };
 
@@ -1051,8 +1053,8 @@ export default function Home() {
   };
 
   // 5. CREACIÓN DE CATEGORÍA (Optimista)
-  const handleCreateCategory = async (nombre: string) => {
-    if (!user) return;
+  const handleCreateCategory = async (nombre: string): Promise<string> => {
+    if (!user) return '';
     const tempId = generateUUID();
     // Algoritmo para evitar colores repetidos en categorías activas
     const usedColors = categories.map((c) => c.color);
@@ -1087,10 +1089,12 @@ export default function Home() {
       );
       // Opcionalmente enfocar la pestaña creada
       setActiveCategoryId(data.id);
+      return data.id;
     } catch (err) {
       console.error('Error creando categoría:', err);
       setCategories((prev) => prev.filter((c) => c.id !== tempId));
       alert('Error al crear la categoría.');
+      return tempId;
     }
   };
 
@@ -1419,7 +1423,9 @@ export default function Home() {
           <section className="flex gap-3">
             <div className="flex-1">
               <QuickInput
-                onSubmitTask={handleCreateTask}
+                onSubmitTask={async (t, f, gn, gc) => {
+                  await handleCreateTask(t, f, gn, gc);
+                }}
                 activeCategoryName={activeCategoryName}
                 tasks={tasks}
                 categories={categories}
@@ -1439,7 +1445,9 @@ export default function Home() {
                 activeCategoryId={activeCategoryId}
                 sharedCategoryIds={sharedCategoryIds}
                 onSelectCategory={setActiveCategoryId}
-                onCreateCategory={handleCreateCategory}
+                onCreateCategory={async (nombre) => {
+                  await handleCreateCategory(nombre);
+                }}
                 onRenameCategory={handleRenameCategory}
                 onDeleteCategory={handleDeleteCategory}
                 onReorderCategories={handleReorderCategories}
@@ -1470,7 +1478,9 @@ export default function Home() {
                 onUpdateTask={handleUpdateTask}
                 onReorderTasks={handleReorderTasks}
                 onOpenDetail={setSelectedTask}
-                onCreateTask={handleCreateTask}
+                onCreateTask={async (t, f, gn, gc) => {
+                  await handleCreateTask(t, f, gn, gc);
+                }}
                 activeGroupName={activeGroupName}
                 onSelectGroup={(name, color) => {
                   setActiveGroupName(name);
@@ -1700,7 +1710,7 @@ export default function Home() {
           categories={categories}
           currentUser={user}
           onCreateTask={async (titulo, catId, grupo, esGrupo) => {
-            await handleCreateTask(titulo, null, grupo, '#8b5cf6', catId, esGrupo);
+            return await handleCreateTask(titulo, null, grupo, '#8b5cf6', catId, esGrupo);
           }}
           onToggleTask={handleToggleTask}
           onDeleteTask={handleDeleteTask}
