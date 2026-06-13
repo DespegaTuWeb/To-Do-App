@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { List, CalendarRange, Loader2, Command, Sun, Moon, LayoutGrid, LogOut, Clipboard, Check, Users } from 'lucide-react';
-import { supabase, Categoria, Pendiente } from '../lib/supabase';
+import { List, CalendarRange, Loader2, Command, Sun, Moon, LogOut, Clipboard, Check, Users, RotateCw } from 'lucide-react';
+import { supabase, Categoria, Pendiente, Rutina, ItemRutina, RegistroRutina } from '../lib/supabase';
 import CategoryTabs from '../components/CategoryTabs';
 import QuickInput from '../components/QuickInput';
 import TaskListView from '../components/TaskListView';
-import TaskTimelineView from '../components/TaskTimelineView';
-import TaskVisualView from '../components/TaskVisualView';
+import TaskCalendarView from '../components/TaskCalendarView';
+import RoutinesView from '../components/RoutinesView';
 import TaskDetailModal from '../components/TaskDetailModal';
 import AuthScreen from '../components/AuthScreen';
 import ConfirmModal from '../components/ConfirmModal';
@@ -95,10 +95,11 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(true);
   const [categories, setCategories] = useState<Categoria[]>([]);
   const [tasks, setTasks] = useState<Pendiente[]>([]);
+  const [routines, setRoutines] = useState<Rutina[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [convertingCategoryId, setConvertingCategoryId] = useState<string | null>(null);
   const [targetParentCategoryId, setTargetParentCategoryId] = useState<string>('inbox');
-  const [viewMode, setViewMode] = useState<'list' | 'timeline' | 'visual'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'routines'>('list');
   const [isLoading, setIsLoading] = useState(true);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [selectedTask, setSelectedTask] = useState<Pendiente | null>(null);
@@ -450,55 +451,61 @@ export default function Home() {
         }
       }
 
-      let finalTasks = visibleTasks;
+      // 1. Fetch Rutinas
+      const { data: routinesData, error: routinesError } = await supabase
+        .from('rutinas')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (routinesError) throw routinesError;
+
+      // 2. Fetch Items de Rutinas
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('items_rutina')
+        .select('*')
+        .order('orden', { ascending: true });
+
+      if (itemsError) throw itemsError;
+
+      // Mapear los items a las rutinas
+      const loadedRoutines: Rutina[] = (routinesData || []).map((r: any) => ({
+        ...r,
+        items: (itemsData || []).filter((item: any) => item.rutina_id === r.id)
+      }));
+
+      // --- LOGICA DE RESETEO DIARIO DE RUTINAS ---
+      let finalRoutines = loadedRoutines;
       try {
-        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
-        const storedResetDate = safeLocalStorage.getItem(`last_routine_reset_${user.id}`);
+        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+        const storedResetDate = safeLocalStorage.getItem(`last_routine_system_reset_${user.id}`);
         
         if (storedResetDate && storedResetDate !== todayStr) {
-          const routineTasksToReset = visibleTasks.filter(t => {
-            if (t.es_grupo || !t.completado) return false;
-            const groupName = t.grupo_nombre;
-            const groupNameLower = groupName?.toLowerCase() || '';
-            const cat = visibleCats.find(c => c.id === t.categoria_id);
-            const catNameLower = cat?.nombre?.toLowerCase() || '';
-            
-            if (!groupName) return false;
-            
-            // Una subcategoría es rutina si:
-            // 1. Su nombre contiene 'rutina'
-            // 2. Es el caso especial 'medicacion regular' en la pestaña 'Rex'
-            // 3. Su tarea definitoria (es_grupo: true) tiene la palabra 'rutina' en su nota/descripción
-            if (groupNameLower.includes('rutina')) return true;
-            if (catNameLower === 'rex' && groupNameLower === 'medicacion regular') return true;
-            
-            const groupDefTask = visibleTasks.find(item => 
-              item.es_grupo && 
-              item.titulo === groupName && 
-              item.categoria_id === t.categoria_id
-            );
-            return groupDefTask?.nota?.toLowerCase().includes('rutina') || false;
-          });
-          
-          if (routineTasksToReset.length > 0) {
-            const idsToReset = routineTasksToReset.map(t => t.id);
-            await supabase
-              .from('pendientes')
+          if (loadedRoutines.length > 0) {
+            const routineIds = loadedRoutines.map(r => r.id);
+            const { error: resetError } = await supabase
+              .from('items_rutina')
               .update({ completado: false })
-              .in('id', idsToReset);
+              .in('rutina_id', routineIds);
               
-            finalTasks = visibleTasks.map(t => 
-              idsToReset.includes(t.id) ? { ...t, completado: false } : t
-            );
+            if (!resetError) {
+              finalRoutines = loadedRoutines.map(r => ({
+                ...r,
+                items: (r.items || []).map(item => ({ ...item, completado: false }))
+              }));
+            } else {
+              console.error('Error executing DB reset for routine items:', resetError);
+            }
           }
         }
-        safeLocalStorage.setItem(`last_routine_reset_${user.id}`, todayStr);
+        safeLocalStorage.setItem(`last_routine_system_reset_${user.id}`, todayStr);
       } catch (resetErr) {
-        console.error('Error al resetear rutinas diarias:', resetErr);
+        console.error('Error in daily routine system reset:', resetErr);
       }
+      // -------------------------------------------
 
       setCategories(visibleCats);
-      setTasks(finalTasks);
+      setTasks(visibleTasks);
+      setRoutines(finalRoutines);
       lastLoadedUserIdRef.current = user.id;
     } catch (err) {
       console.error('Error cargando datos de Supabase:', err);
@@ -673,56 +680,6 @@ export default function Home() {
         .eq('user_id', user.id);
 
       if (error) throw error;
-
-      // --- LOGICA DE REGISTRO AUTOMÁTICO DE RUTINAS ---
-      if (completado) {
-        const targetTask = previousTasks.find(t => t.id === id);
-        if (targetTask && !targetTask.es_grupo) {
-          const catName = categories.find(c => c.id === targetTask.categoria_id)?.nombre || '';
-          const groupName = targetTask.grupo_nombre;
-          const groupNameLower = groupName?.toLowerCase() || '';
-          
-          let isRoutine = false;
-          if (groupName) {
-            if (groupNameLower.includes('rutina')) {
-              isRoutine = true;
-            } else if (catName.toLowerCase() === 'rex' && groupNameLower === 'medicacion regular') {
-              isRoutine = true;
-            } else {
-              // Buscar definición del grupo para comprobar si su nota contiene 'rutina'
-              const groupDefTask = previousTasks.find(t => 
-                t.es_grupo && 
-                t.titulo === groupName && 
-                t.categoria_id === targetTask.categoria_id
-              );
-              if (groupDefTask?.nota?.toLowerCase().includes('rutina')) {
-                isRoutine = true;
-              }
-            }
-          }
-
-          if (isRoutine) {
-            const now = new Date();
-            const dd = String(now.getDate()).padStart(2, '0');
-            const mm = String(now.getMonth() + 1).padStart(2, '0');
-            const yy = String(now.getFullYear()).slice(-2);
-            const formattedDate = `${dd}/${mm}/${yy}`;
-            const regTitle = `[${targetTask.titulo}] completado ${formattedDate}`;
-
-            await handleCreateTask(
-              regTitle,
-              null,
-              'Completada',
-              '#10b981',
-              targetTask.categoria_id,
-              false,
-              'Registro automático de rutina.',
-              true
-            );
-          }
-        }
-      }
-      // ------------------------------------------------
     } catch (err) {
       console.error('Error toggling tarea:', err);
       // Revertir
@@ -789,6 +746,201 @@ export default function Home() {
       setTasks(prev => prev.filter(t => t.id !== restoredTask.id));
       setToastMessage('Error al restaurar tarea');
       setTimeout(() => setToastMessage(null), 2000);
+    }
+  };
+
+  // --- CONTROLES DE RUTINAS ---
+  const handleCreateRoutine = async (
+    nombre: string,
+    descripcion: string | null,
+    color: string,
+    diasSemana: number[],
+    items: string[],
+    categoriaId: string | null
+  ) => {
+    if (!user) return;
+    try {
+      const { data: routineData, error: routineError } = await supabase
+        .from('rutinas')
+        .insert([{
+          nombre,
+          descripcion,
+          color,
+          dias_semana: diasSemana,
+          categoria_id: categoriaId,
+          user_id: user.id
+        }])
+        .select()
+        .single();
+
+      if (routineError) throw routineError;
+
+      const newRoutineId = routineData.id;
+      let insertedItems: ItemRutina[] = [];
+
+      if (items.length > 0) {
+        const itemsToInsert = items.map((item, idx) => ({
+          rutina_id: newRoutineId,
+          titulo: item,
+          completado: false,
+          orden: idx
+        }));
+
+        const { data: itemsResult, error: itemsError } = await supabase
+          .from('items_rutina')
+          .insert(itemsToInsert)
+          .select();
+
+        if (itemsError) throw itemsError;
+        insertedItems = itemsResult || [];
+      }
+
+      const completeNewRoutine: Rutina = {
+        ...routineData,
+        items: insertedItems
+      };
+
+      setRoutines(prev => [...prev, completeNewRoutine]);
+      setToastMessage(`Rutina "${nombre}" creada con éxito.`);
+      setTimeout(() => setToastMessage(prev => prev === `Rutina "${nombre}" creada con éxito.` ? null : prev), 2500);
+    } catch (err) {
+      console.error('Error creating routine:', err);
+      alert('No se pudo crear la rutina.');
+    }
+  };
+
+  const handleToggleRoutineItem = async (itemId: string, completado: boolean) => {
+    if (!user) return;
+    
+    let targetRoutine: Rutina | undefined;
+    let targetItem: ItemRutina | undefined;
+
+    for (const r of routines) {
+      const found = r.items?.find(item => item.id === itemId);
+      if (found) {
+        targetRoutine = r;
+        targetItem = found;
+        break;
+      }
+    }
+
+    if (!targetRoutine || !targetItem) return;
+    const previousRoutines = [...routines];
+
+    // Optimista
+    setRoutines(prev => prev.map(r => {
+      if (r.id === targetRoutine?.id) {
+        return {
+          ...r,
+          items: (r.items || []).map(item => item.id === itemId ? { ...item, completado } : item)
+        };
+      }
+      return r;
+    }));
+
+    try {
+      const { error: itemError } = await supabase
+        .from('items_rutina')
+        .update({ completado })
+        .eq('id', itemId);
+
+      if (itemError) throw itemError;
+
+      if (completado) {
+        const { error: logError } = await supabase
+          .from('registro_rutinas')
+          .insert([{
+            rutina_id: targetRoutine.id,
+            item_titulo: targetItem.titulo,
+            user_id: user.id
+          }]);
+
+        if (logError) {
+          console.error('Error recording routine log:', logError);
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling routine item:', err);
+      setRoutines(previousRoutines);
+      alert('No se pudo actualizar la sub-tarea.');
+    }
+  };
+
+  const handleDeleteRoutine = async (routineId: string) => {
+    if (!user) return;
+    const previousRoutines = [...routines];
+
+    setRoutines(prev => prev.filter(r => r.id !== routineId));
+
+    try {
+      const { error } = await supabase
+        .from('rutinas')
+        .delete()
+        .eq('id', routineId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setToastMessage('Rutina eliminada.');
+      setTimeout(() => setToastMessage(prev => prev === 'Rutina eliminada.' ? null : prev), 2500);
+    } catch (err) {
+      console.error('Error deleting routine:', err);
+      setRoutines(previousRoutines);
+      alert('No se pudo eliminar la rutina.');
+    }
+  };
+
+  const handleUpdateRoutine = async (
+    routineId: string, 
+    updates: Partial<Rutina>,
+    itemsToCreate?: string[],
+    itemIdsToDelete?: string[]
+  ) => {
+    if (!user) return;
+    const previousRoutines = [...routines];
+
+    try {
+      const { error: routineError } = await supabase
+        .from('rutinas')
+        .update(updates)
+        .eq('id', routineId)
+        .eq('user_id', user.id);
+
+      if (routineError) throw routineError;
+
+      if (itemIdsToDelete && itemIdsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('items_rutina')
+          .delete()
+          .in('id', itemIdsToDelete);
+
+        if (deleteError) throw deleteError;
+      }
+
+      if (itemsToCreate && itemsToCreate.length > 0) {
+        const currentItems = routines.find(r => r.id === routineId)?.items || [];
+        const maxOrder = currentItems.reduce((max, item) => item.orden > max ? item.orden : max, -1);
+
+        const newItemsPayload = itemsToCreate.map((title, idx) => ({
+          rutina_id: routineId,
+          titulo: title,
+          completado: false,
+          orden: maxOrder + 1 + idx
+        }));
+
+        const { error: createError } = await supabase
+          .from('items_rutina')
+          .insert(newItemsPayload);
+
+        if (createError) throw createError;
+      }
+
+      await loadData(true);
+      setToastMessage('Rutina actualizada.');
+      setTimeout(() => setToastMessage(prev => prev === 'Rutina actualizada.' ? null : prev), 2500);
+    } catch (err) {
+      console.error('Error updating routine:', err);
+      setRoutines(previousRoutines);
+      alert('No se pudo actualizar la rutina.');
     }
   };
 
@@ -1459,9 +1611,9 @@ export default function Home() {
               <span className="max-sm:hidden">Lista</span>
             </button>
             <button
-              onClick={() => setViewMode('timeline')}
+              onClick={() => setViewMode('calendar')}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
-                viewMode === 'timeline'
+                viewMode === 'calendar'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
@@ -1471,16 +1623,16 @@ export default function Home() {
               <span className="max-sm:hidden">Calendario</span>
             </button>
             <button
-              onClick={() => setViewMode('visual')}
+              onClick={() => setViewMode('routines')}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-smooth cursor-pointer ${
-                viewMode === 'visual'
+                viewMode === 'routines'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="Vista Planificador Visual"
+              title="Vista Rutinas"
             >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span className="max-sm:hidden">Visual</span>
+              <RotateCw className="w-3.5 h-3.5" />
+              <span className="max-sm:hidden">Rutinas</span>
             </button>
           </div>
 
@@ -1589,22 +1741,25 @@ export default function Home() {
                 onConvertGroupToTask={handleConvertGroupToTask}
                 onPromoteGroupToCategory={handlePromoteGroupToCategory}
               />
-            ) : viewMode === 'timeline' ? (
-              <TaskTimelineView
+            ) : viewMode === 'calendar' ? (
+              <TaskCalendarView
                 tasks={filteredSearchTasks}
                 categories={categories}
                 onToggleTask={handleToggleTask}
                 onDeleteTask={handleDeleteTask}
                 onUpdateTask={handleUpdateTask}
-                onOpenDetail={setSelectedTask}
+                onCreateTask={async (titulo, fechaLimite, grupoNombre, grupoColor) => {
+                  return await handleCreateTask(titulo, fechaLimite, grupoNombre, grupoColor);
+                }}
               />
             ) : (
-              <TaskVisualView
-                tasks={filteredSearchTasks}
+              <RoutinesView
+                routines={activeCategoryId === null ? routines : routines.filter(r => r.categoria_id === activeCategoryId)}
                 categories={categories}
-                onToggleTask={handleToggleTask}
-                onDeleteTask={handleDeleteTask}
-                onUpdateTask={handleUpdateTask}
+                onCreateRoutine={handleCreateRoutine}
+                onToggleRoutineItem={handleToggleRoutineItem}
+                onDeleteRoutine={handleDeleteRoutine}
+                onUpdateRoutine={handleUpdateRoutine}
               />
             )}
           </section>
@@ -1783,24 +1938,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Barra de progreso flotante abajo */}
-      {totalCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 glass-panel px-4 py-2.5 rounded-full shadow-lg border border-white/10 flex items-center gap-3 backdrop-blur-md animate-fade-in max-w-sm w-[90%] md:w-auto">
-          <span className="text-xs font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
-            {completionRate}% completado
-          </span>
-          <div className="w-24 md:w-32 h-2 bg-slate-200 dark:bg-slate-700/60 rounded-full overflow-hidden flex-shrink-0">
-            <div 
-              className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500 ease-out rounded-full"
-              style={{ width: `${completionRate}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
-            {completedCount}/{totalCount}
-          </span>
-        </div>
-      )}
-
       {/* Asistente de Productividad Chat AI */}
       {isPremium && (
         <ProductivityChat
@@ -1808,6 +1945,7 @@ export default function Home() {
           onClose={() => setIsChatOpen(false)}
           tasks={tasks}
           categories={categories}
+          routines={routines}
           currentUser={user}
           onCreateTask={async (titulo, catId, grupo, esGrupo, nota) => {
             return await handleCreateTask(titulo, null, grupo, '#8b5cf6', catId, esGrupo, nota);
@@ -1815,6 +1953,10 @@ export default function Home() {
           onToggleTask={handleToggleTask}
           onDeleteTask={handleDeleteTask}
           onCreateCategory={handleCreateCategory}
+          onCreateRoutine={handleCreateRoutine}
+          onToggleRoutineItem={handleToggleRoutineItem}
+          onDeleteRoutine={handleDeleteRoutine}
+          onUpdateRoutine={handleUpdateRoutine}
         />
       )}
 

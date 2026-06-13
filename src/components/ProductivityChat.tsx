@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Sparkles, X, Send, Loader2, Bot, User, ClipboardList, Mic, MicOff, Volume2, VolumeX, Square } from 'lucide-react';
-import { supabase, Categoria, Pendiente } from '../lib/supabase';
+import { supabase, Categoria, Pendiente, Rutina } from '../lib/supabase';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -14,11 +14,16 @@ interface ProductivityChatProps {
   onClose: () => void;
   tasks: Pendiente[];
   categories: Categoria[];
+  routines: Rutina[];
   currentUser: any;
   onCreateTask: (titulo: string, categoriaId: string | null, grupo?: string | null, esGrupo?: boolean, nota?: string | null) => Promise<string>;
   onToggleTask: (id: string, completado: boolean) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
   onCreateCategory: (nombre: string) => Promise<string>;
+  onCreateRoutine: (nombre: string, descripcion: string | null, color: string, diasSemana: number[], items: string[], categoriaId: string | null) => Promise<void>;
+  onToggleRoutineItem: (itemId: string, completado: boolean) => Promise<void>;
+  onDeleteRoutine: (routineId: string) => Promise<void>;
+  onUpdateRoutine: (routineId: string, updates: Partial<Rutina>, itemsToCreate?: string[], itemIdsToDelete?: string[]) => Promise<void>;
 }
 
 export default function ProductivityChat({
@@ -26,11 +31,16 @@ export default function ProductivityChat({
   onClose,
   tasks,
   categories,
+  routines,
   currentUser,
   onCreateTask,
   onToggleTask,
   onDeleteTask,
   onCreateCategory,
+  onCreateRoutine,
+  onToggleRoutineItem,
+  onDeleteRoutine,
+  onUpdateRoutine,
 }: ProductivityChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -296,6 +306,22 @@ export default function ProductivityChat({
       };
     });
 
+    // Filtrar y limpiar las rutinas para la IA
+    const prunedRoutines = routines.map((r) => {
+      const category = categories.find((c) => c.id === r.categoria_id);
+      return {
+        nombre: r.nombre,
+        descripcion: r.descripcion || undefined,
+        color: r.color,
+        dias_semana: r.dias_semana,
+        categoria: category ? category.nombre : undefined,
+        items: (r.items || []).map(item => ({
+          titulo: item.titulo,
+          completado: item.completado
+        }))
+      };
+    });
+
     const categoryNames = categories.map((c) => c.nombre);
 
     const d = new Date();
@@ -315,6 +341,7 @@ export default function ProductivityChat({
         body: JSON.stringify({
           messages: [...messages.slice(-8), { role: 'user', content: userMessage }],
           tasks: prunedTasks,
+          routines: prunedRoutines,
           categories: categoryNames,
           currentTime,
           currentDate,
@@ -477,6 +504,68 @@ export default function ProductivityChat({
                   }
                 } else {
                   executedSummaries.push(`⚠️ No se encontró la categoría **${categoria}** para compartir`);
+                }
+              }
+            } else if (action.type === 'create_routine') {
+              const { nombre, descripcion, color, dias_semana, categoria, items } = action.payload;
+              if (nombre) {
+                let targetCatId: string | null = null;
+                if (categoria && categoria.toLowerCase() !== 'inbox' && categoria.toLowerCase() !== 'sin categoría') {
+                  const localCatId = newlyCreatedCategories[categoria.trim().toLowerCase()];
+                  if (localCatId) {
+                    targetCatId = localCatId;
+                  } else {
+                    const matchedCat = categories.find(
+                      (c) => c.nombre.trim().toLowerCase() === categoria.trim().toLowerCase()
+                    );
+                    if (matchedCat) {
+                      targetCatId = matchedCat.id;
+                    }
+                  }
+                }
+                await onCreateRoutine(
+                  nombre.trim(),
+                  descripcion ? descripcion.trim() : null,
+                  color || '#8b5cf6',
+                  dias_semana || [1, 2, 3, 4, 5, 6, 0],
+                  items || [],
+                  targetCatId
+                );
+                executedSummaries.push(`🔄 Rutina **${nombre}** creada`);
+              }
+            } else if (action.type === 'toggle_routine_item') {
+              const { rutina_nombre, item_titulo, completado } = action.payload;
+              if (rutina_nombre && item_titulo) {
+                const routine = routines.find(
+                  (r) => r.nombre.trim().toLowerCase() === rutina_nombre.trim().toLowerCase()
+                );
+                if (routine) {
+                  const item = (routine.items || []).find(
+                    (i) => i.titulo.trim().toLowerCase() === item_titulo.trim().toLowerCase()
+                  );
+                  if (item) {
+                    await onToggleRoutineItem(item.id, completado);
+                    executedSummaries.push(
+                      `${completado ? '✅' : '⏳'} Item **${item_titulo}** de rutina **${routine.nombre}** marcado como ${completado ? 'completado' : 'pendiente'}`
+                    );
+                  } else {
+                    executedSummaries.push(`⚠️ No se encontró el item **${item_titulo}** en la rutina **${routine.nombre}**`);
+                  }
+                } else {
+                  executedSummaries.push(`⚠️ No se encontró la rutina **${rutina_nombre}**`);
+                }
+              }
+            } else if (action.type === 'delete_routine') {
+              const { nombre } = action.payload;
+              if (nombre) {
+                const routine = routines.find(
+                  (r) => r.nombre.trim().toLowerCase() === nombre.trim().toLowerCase()
+                );
+                if (routine) {
+                  await onDeleteRoutine(routine.id);
+                  executedSummaries.push(`🗑️ Rutina **${routine.nombre}** eliminada`);
+                } else {
+                  executedSummaries.push(`⚠️ No se encontró la rutina **${nombre}** para eliminar`);
                 }
               }
             }

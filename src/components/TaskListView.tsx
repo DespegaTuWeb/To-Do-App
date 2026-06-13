@@ -52,35 +52,12 @@ export default function TaskListView({
   onPromoteGroupToCategory,
 }: TaskListViewProps) {
   const [showCompleted, setShowCompleted] = useState(false);
-  const [showCompletedRoutines, setShowCompletedRoutines] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [draggedGroupTaskDefId, setDraggedGroupTaskDefId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [disabledDragTaskId, setDisabledDragTaskId] = useState<string | null>(null);
   const [revertingGroupName, setRevertingGroupName] = useState<string | null>(null);
   const todayStr = getLocalDateString(0);
-
-  // Helper para comprobar si un grupo es de rutina
-  const checkIfGroupIsRoutine = (groupName: string | null | undefined, catId: string | null) => {
-    if (!groupName) return false;
-    const nameLower = groupName.toLowerCase();
-    if (nameLower.includes('rutina') || nameLower === 'medicacion regular') {
-      return true;
-    }
-    
-    const cat = categories.find(c => c.id === catId);
-    const catNameLower = cat?.nombre?.toLowerCase() || '';
-    if (catNameLower === 'rex' && nameLower === 'medicacion regular') {
-      return true;
-    }
-    
-    const groupDef = tasks.find(t => 
-      t.es_grupo && 
-      t.titulo === groupName && 
-      t.categoria_id === catId
-    );
-    return groupDef?.nota?.toLowerCase().includes('rutina') || false;
-  };
 
   // Filtrado de tareas según la categoría activa
   const filteredTasks = tasks.filter((task) => {
@@ -92,41 +69,15 @@ export default function TaskListView({
     return task.categoria_id === activeCategoryId;
   });
 
-  // Separamos las tareas de rutina y sus logs de completados de las tareas normales
-  const routineTasks = filteredTasks.filter(t => {
-    const isRoutine = checkIfGroupIsRoutine(t.grupo_nombre, t.categoria_id);
-    const isRoutineDef = t.es_grupo && checkIfGroupIsRoutine(t.titulo, t.categoria_id);
-    return isRoutine || isRoutineDef;
-  });
-
-  const completionLogTasks = filteredTasks.filter(t => 
-    t.grupo_nombre?.toLowerCase() === 'completada' || 
-    (t.es_grupo && t.titulo?.toLowerCase() === 'completada')
-  );
-
-  // Las tareas normales excluyen rutinas y logs de completados
+  // Las tareas normales excluyen logs de completados (antiguo sistema de rutinas)
   const normalFilteredTasks = filteredTasks.filter(t => {
-    const isRoutine = checkIfGroupIsRoutine(t.grupo_nombre, t.categoria_id);
-    const isRoutineDef = t.es_grupo && checkIfGroupIsRoutine(t.titulo, t.categoria_id);
     const isLog = t.grupo_nombre?.toLowerCase() === 'completada';
     const isLogDef = t.es_grupo && t.titulo?.toLowerCase() === 'completada';
-    return !isRoutine && !isRoutineDef && !isLog && !isLogDef;
+    return !isLog && !isLogDef;
   });
 
   const pendingTasks = normalFilteredTasks.filter((t) => !t.completado);
   const completedTasks = normalFilteredTasks.filter((t) => t.completado);
-
-  // Agrupar rutinas
-  const routineGroupDefs = routineTasks.filter(t => t.es_grupo);
-  const routineGroupNames = Array.from(new Set([
-    ...routineGroupDefs.map(t => t.titulo),
-    ...routineTasks.filter(t => !t.es_grupo && t.grupo_nombre).map(t => t.grupo_nombre as string)
-  ]));
-  
-  const groupedRoutines: Record<string, Pendiente[]> = {};
-  routineGroupNames.forEach(name => {
-    groupedRoutines[name] = routineTasks.filter(t => !t.es_grupo && t.grupo_nombre === name);
-  });
 
   const getCategoryDetails = (catId: string | null) => {
     const cat = categories.find((c) => c.id === catId);
@@ -314,110 +265,6 @@ export default function TaskListView({
 
   return (
     <div className="w-full flex flex-col gap-6 animate-check-pop">
-      {/* PANEL DE RUTINAS DIARIAS */}
-      {routineGroupNames.length > 0 && (
-        <div className="w-full bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white/0 border border-indigo-500/20 dark:border-indigo-500/15 rounded-2xl p-4 md:p-5 flex flex-col gap-4 shadow-xl shadow-indigo-500/5">
-          <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🔄</span>
-                <h2 className="text-sm font-bold text-luxury-primary tracking-wide">Rutinas Diarias</h2>
-                <span className="text-[10px] bg-indigo-500/20 text-indigo-400 font-extrabold uppercase px-1.5 py-0.5 rounded-md tracking-wider">Nuevo</span>
-              </div>
-              <span className="text-[11px] text-slate-400 mt-0.5">
-                Tareas recurrentes que se restablecen automáticamente cada mañana.
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            {routineGroupNames.map(groupName => {
-              const items = groupedRoutines[groupName] || [];
-              const groupDef = routineGroupDefs.find(g => g.titulo === groupName);
-              const total = items.length;
-              const completed = items.filter(t => t.completado).length;
-              const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-              const groupColor = groupDef?.grupo_color || '#8b5cf6';
-
-              return (
-                <div key={groupName} className="flex flex-col gap-2 bg-white/[0.02] border border-white/5 rounded-xl p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-3 rounded-full" style={{ backgroundColor: groupColor }} />
-                      <span className="text-xs font-bold text-slate-200">{groupName}</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400">
-                      {completed}/{total} completadas ({percent}%)
-                    </span>
-                  </div>
-
-                  {/* Barra de progreso premium */}
-                  {total > 0 && (
-                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-indigo-500 to-purple-600"
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                  )}
-
-                  {groupDef?.nota && (
-                    <p className="text-[10px] text-slate-400 italic font-normal mt-0.5 mb-1.5 border-l-2 border-slate-700 pl-2">
-                      {groupDef.nota}
-                    </p>
-                  )}
-
-                  <div className="flex flex-col gap-1.5 mt-1">
-                    {items.map(task => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        categoryColor={getCategoryDetails(task.categoria_id).color}
-                        onToggle={onToggleTask}
-                        onDelete={onDeleteTask}
-                        onUpdate={onUpdateTask}
-                        onOpenDetail={onOpenDetail}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* HISTORIAL DE COMPLETADOS (LOGS) */}
-          {completionLogTasks.length > 0 && (
-            <div className="mt-2 pt-2.5 border-t border-white/5 flex flex-col gap-2">
-              <button
-                onClick={() => setShowCompletedRoutines(!showCompletedRoutines)}
-                className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-slate-200 transition-smooth cursor-pointer self-start animate-check-pop"
-              >
-                {showCompletedRoutines ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                <span>Ver historial de completados ({completionLogTasks.filter(t => !t.es_grupo).length})</span>
-              </button>
-
-              {showCompletedRoutines && (
-                <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1 animate-fade-in">
-                  {completionLogTasks
-                    .filter(t => !t.es_grupo)
-                    .map(task => (
-                      <div key={task.id} className="opacity-60 hover:opacity-100 transition-opacity">
-                        <TaskItem
-                          task={task}
-                          categoryColor="#10b981"
-                          onToggle={onToggleTask}
-                          onDelete={onDeleteTask}
-                          onUpdate={onUpdateTask}
-                          onOpenDetail={onOpenDetail}
-                        />
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Lista de Tareas Activas (Pendientes) agrupadas */}
       <div className="flex flex-col gap-4">

@@ -37,3 +37,33 @@ export interface Pendiente {
   grupo_color?: string | null;
   es_grupo?: boolean;
 }
+
+export interface Rutina {
+  id: string;
+  created_at: string;
+  user_id: string;
+  nombre: string;
+  descripcion: string | null;
+  color: string;
+  dias_semana: number[]; // 0=Domingo, 1=Lunes, etc.
+  categoria_id: string | null;
+  items?: ItemRutina[];
+}
+
+export interface ItemRutina {
+  id: string;
+  created_at: string;
+  rutina_id: string;
+  titulo: string;
+  completado: boolean;
+  orden: number;
+}
+
+export interface RegistroRutina {
+  id: string;
+  created_at: string;
+  user_id: string;
+  rutina_id: string;
+  item_titulo: string;
+  fecha: string; // YYYY-MM-DD
+}
