@@ -15,7 +15,7 @@ interface ProductivityChatProps {
   tasks: Pendiente[];
   categories: Categoria[];
   currentUser: any;
-  onCreateTask: (titulo: string, categoriaId: string | null, grupo?: string | null, esGrupo?: boolean) => Promise<string>;
+  onCreateTask: (titulo: string, categoriaId: string | null, grupo?: string | null, esGrupo?: boolean, nota?: string | null) => Promise<string>;
   onToggleTask: (id: string, completado: boolean) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
   onCreateCategory: (nombre: string) => Promise<string>;
@@ -313,7 +313,7 @@ export default function ProductivityChat({
           'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify({
-          messages: [...messages, { role: 'user', content: userMessage }],
+          messages: [...messages.slice(-8), { role: 'user', content: userMessage }],
           tasks: prunedTasks,
           categories: categoryNames,
           currentTime,
@@ -347,7 +347,7 @@ export default function ProductivityChat({
                 executedSummaries.push(`📁 Categoría **${nombre}** creada`);
               }
             } else if (action.type === 'create_task') {
-              const { titulo, categoria, es_grupo, grupo } = action.payload;
+              const { titulo, categoria, es_grupo, grupo, nota } = action.payload;
               if (titulo) {
                 let targetCatId: string | null = null;
                 if (categoria && categoria.toLowerCase() !== 'inbox' && categoria.toLowerCase() !== 'sin categoría') {
@@ -364,7 +364,7 @@ export default function ProductivityChat({
                   }
                 }
                 
-                const taskId = await onCreateTask(titulo, targetCatId, grupo || null, es_grupo || false);
+                const taskId = await onCreateTask(titulo, targetCatId, grupo || null, es_grupo || false, nota || null);
                 newlyCreatedTasks[titulo.trim().toLowerCase()] = taskId;
 
                 let locText = `📝 Tarea **${titulo}** creada`;

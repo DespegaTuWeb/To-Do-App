@@ -114,7 +114,8 @@ Debes responder ÚNICAMENTE con un objeto JSON válido que siga este esquema exa
         "titulo": "Título de la tarea o de la subcategoría a crear",
         "categoria": "Nombre de la categoría asignada para esta tarea (debe coincidir con alguna categoría existente, o usa 'Inbox' si no aplica ninguna)",
         "es_grupo": true, // Opcional. Pon true solo si es la definición de un grupo/subcategoría en sí
-        "grupo": "Nombre del grupo visual (subcategoría) si la tarea pertenece a un grupo, o si es la definición del grupo en sí" // Opcional
+        "grupo": "Nombre del grupo visual (subcategoría) si la tarea pertenece a un grupo, o si es la definición del grupo en sí", // Opcional
+        "nota": "Descripción o nota adicional explicativa de la tarea" // Opcional
       }
     },
     {
@@ -160,7 +161,14 @@ Pautas e indicaciones indispensables para tu respuesta en el campo "reply":
 7. Si la lista de tareas está vacía, anima al usuario a crear su primera categoría y añadir un pendiente para empezar a organizar su día.
 8. **NUNCA expongas identificadores técnicos, UUIDs ni campos crudos de la base de datos** (como "39bbbf12-1a7f-4b31-a50d-ddcb26f...", "Cat: null", "es_grupo: true", "grupo_nombre", "categoria_id", "id", "user_id", etc.). Los UUIDs e IDs son internos y no significan nada para el usuario. Refiérete a las tareas utilizando ÚNICAMENTE su título ("titulo") y a las categorías utilizando ÚNICAMENTE su nombre ("nombre"). Si una tarea no tiene categoría asignada (categoria_id es null), indícale al usuario que está en su "Inbox" o que no tiene categoría, en lugar de imprimir "Cat: null" o el ID. Toda respuesta debe estar redactada en lenguaje natural, limpio, elegante y profesional.
 9. **Formato JSON Estricto**: Asegúrate de generar un JSON perfectamente válido. Si incluyes comillas dobles dentro del texto del campo "reply", debes escaparlas obligatoriamente como \\" para evitar corromper la estructura JSON.
-10. **Límite de Longitud y Síntesis**: Limita tu respuesta en "reply" a un máximo de 200 palabras. Si el usuario te pide las tareas importantes o prioritarias, lístalas de forma ultra-directa en viñetas cortas de una sola línea, sin dar rodeos ni introducciones largas. Esto es indispensable para evitar que la respuesta sea demasiado pesada y se corte.`;
+10. **Límite de Longitud y Síntesis**: Limita tu respuesta en "reply" a un máximo de 200 palabras. Si el usuario te pide las tareas importantes o prioritarias, lístalas de forma ultra-directa en viñetas cortas de una sola línea, sin dar rodeos ni introducciones largas. Esto es indispensable para evitar que la respuesta sea demasiado pesada y se corte.
+11. **Regla de Rutinas Fijas (Medicación de Rex)**: Las tareas de horarios y dosis fijas en la categoría **Rex** son rutinas diarias fijas permanentes. **NUNCA debes borrarlas ni sugerir su eliminación**, ya que actúan como plantilla fija diaria. Si estas tareas o la subcategoría **medicacion regular** no existen en la lista de pendientes (por ejemplo, porque el usuario las eliminó por error o te pide restablecerlas), debes crearlas en la categoría **Rex** dentro del grupo/subcategoría **medicacion regular** con las siguientes notas/descripciones exactas:
+    - Tarea: \`"07:00 AM — Higacure"\`, nota: \`"Solo y en ayunas. No eliminar esta tarea, ya que es regular diaria."\`
+    - Tarea: \`"08:00 AM — Desayuno"\`, nota: \`"No eliminar esta tarea, ya que es regular diaria."\`
+    - Tarea: \`"08:15 AM — Meloxivet"\`, nota: \`"Justo después de desayunar. (Como su último inyectable fue ayer por la tarde, arrancar mañana a las 8:15 AM con el jarabe/pastilla es el momento ideal). No eliminar esta tarea, ya que es regular diaria."\`
+    - Tarea: \`"08:45 AM — Amoxicilina + Gabapentina"\`, nota: \`"Juntas, cerrando el bloque de la mañana. No eliminar esta tarea, ya que es regular diaria."\`
+    - Tarea: \`"08:45 PM — Amoxicilina + Gabapentina (Noche)"\`, nota: \`"Juntas, después de cenar. No eliminar esta tarea, ya que es regular diaria."\`
+12. **Registro de Compleción de Medicación**: Si el usuario te indica que completó la medicación o comida de hoy (o que ya le dio su dosis/comida de Higacure, Meloxivet, Amoxicilina, etc.), **debes marcar como completada la tarea correspondiente de la plantilla fija** en el grupo/subcategoría \`medicacion regular\` llamando a la acción \`toggle_task\` con \`completado: true\`. **NO** debes crear manualmente una tarea en el grupo \`Completada\`, ya que el backend de la aplicación creará automáticamente la tarea de registro completada (ej: \`"[Nombre de la Tarea] completado DD/MM/AA"\`) al completarse la tarea de la plantilla. Explícale al usuario que las tareas de la plantilla se desmarcan automáticamente al iniciar cada nuevo día y que el historial de tracking se guarda bajo el grupo \`Completada\`.`;
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
@@ -176,7 +184,7 @@ Pautas e indicaciones indispensables para tu respuesta en el campo "reply":
         },
         generationConfig: {
           temperature: 0.6,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 8192,
           responseMimeType: 'application/json',
         },
         safetySettings: [

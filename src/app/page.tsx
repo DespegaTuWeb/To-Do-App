@@ -450,8 +450,55 @@ export default function Home() {
         }
       }
 
+      let finalTasks = visibleTasks;
+      try {
+        const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local format
+        const storedResetDate = safeLocalStorage.getItem(`last_routine_reset_${user.id}`);
+        
+        if (storedResetDate && storedResetDate !== todayStr) {
+          const routineTasksToReset = visibleTasks.filter(t => {
+            if (t.es_grupo || !t.completado) return false;
+            const groupName = t.grupo_nombre;
+            const groupNameLower = groupName?.toLowerCase() || '';
+            const cat = visibleCats.find(c => c.id === t.categoria_id);
+            const catNameLower = cat?.nombre?.toLowerCase() || '';
+            
+            if (!groupName) return false;
+            
+            // Una subcategoría es rutina si:
+            // 1. Su nombre contiene 'rutina'
+            // 2. Es el caso especial 'medicacion regular' en la pestaña 'Rex'
+            // 3. Su tarea definitoria (es_grupo: true) tiene la palabra 'rutina' en su nota/descripción
+            if (groupNameLower.includes('rutina')) return true;
+            if (catNameLower === 'rex' && groupNameLower === 'medicacion regular') return true;
+            
+            const groupDefTask = visibleTasks.find(item => 
+              item.es_grupo && 
+              item.titulo === groupName && 
+              item.categoria_id === t.categoria_id
+            );
+            return groupDefTask?.nota?.toLowerCase().includes('rutina') || false;
+          });
+          
+          if (routineTasksToReset.length > 0) {
+            const idsToReset = routineTasksToReset.map(t => t.id);
+            await supabase
+              .from('pendientes')
+              .update({ completado: false })
+              .in('id', idsToReset);
+              
+            finalTasks = visibleTasks.map(t => 
+              idsToReset.includes(t.id) ? { ...t, completado: false } : t
+            );
+          }
+        }
+        safeLocalStorage.setItem(`last_routine_reset_${user.id}`, todayStr);
+      } catch (resetErr) {
+        console.error('Error al resetear rutinas diarias:', resetErr);
+      }
+
       setCategories(visibleCats);
-      setTasks(visibleTasks);
+      setTasks(finalTasks);
       lastLoadedUserIdRef.current = user.id;
     } catch (err) {
       console.error('Error cargando datos de Supabase:', err);
@@ -551,7 +598,9 @@ export default function Home() {
     grupoNombre?: string | null, 
     grupoColor?: string | null,
     categoriaId?: string | null,
-    esGrupo?: boolean
+    esGrupo?: boolean,
+    nota?: string | null,
+    completado?: boolean
   ): Promise<string> => {
     if (!user) return '';
     const tempId = generateUUID();
@@ -559,9 +608,9 @@ export default function Home() {
       id: tempId,
       created_at: new Date().toISOString(),
       titulo,
-      nota: null,
+      nota: nota || null,
       fecha_limite: fechaLimite,
-      completado: false,
+      completado: completado !== undefined ? completado : false,
       categoria_id: categoriaId !== undefined ? categoriaId : activeCategoryId, // Si se especifica, usarlo; de lo contrario, la pestaña activa
       user_id: user.id,
       grupo_nombre: grupoNombre || null,
@@ -577,6 +626,7 @@ export default function Home() {
         .from('pendientes')
         .insert([{
           titulo: newTask.titulo,
+          nota: newTask.nota,
           fecha_limite: newTask.fecha_limite,
           completado: newTask.completado,
           categoria_id: newTask.categoria_id,
@@ -623,6 +673,56 @@ export default function Home() {
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      // --- LOGICA DE REGISTRO AUTOMÁTICO DE RUTINAS ---
+      if (completado) {
+        const targetTask = previousTasks.find(t => t.id === id);
+        if (targetTask && !targetTask.es_grupo) {
+          const catName = categories.find(c => c.id === targetTask.categoria_id)?.nombre || '';
+          const groupName = targetTask.grupo_nombre;
+          const groupNameLower = groupName?.toLowerCase() || '';
+          
+          let isRoutine = false;
+          if (groupName) {
+            if (groupNameLower.includes('rutina')) {
+              isRoutine = true;
+            } else if (catName.toLowerCase() === 'rex' && groupNameLower === 'medicacion regular') {
+              isRoutine = true;
+            } else {
+              // Buscar definición del grupo para comprobar si su nota contiene 'rutina'
+              const groupDefTask = previousTasks.find(t => 
+                t.es_grupo && 
+                t.titulo === groupName && 
+                t.categoria_id === targetTask.categoria_id
+              );
+              if (groupDefTask?.nota?.toLowerCase().includes('rutina')) {
+                isRoutine = true;
+              }
+            }
+          }
+
+          if (isRoutine) {
+            const now = new Date();
+            const dd = String(now.getDate()).padStart(2, '0');
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const yy = String(now.getFullYear()).slice(-2);
+            const formattedDate = `${dd}/${mm}/${yy}`;
+            const regTitle = `[${targetTask.titulo}] completado ${formattedDate}`;
+
+            await handleCreateTask(
+              regTitle,
+              null,
+              'Completada',
+              '#10b981',
+              targetTask.categoria_id,
+              false,
+              'Registro automático de rutina.',
+              true
+            );
+          }
+        }
+      }
+      // ------------------------------------------------
     } catch (err) {
       console.error('Error toggling tarea:', err);
       // Revertir
@@ -1709,8 +1809,8 @@ export default function Home() {
           tasks={tasks}
           categories={categories}
           currentUser={user}
-          onCreateTask={async (titulo, catId, grupo, esGrupo) => {
-            return await handleCreateTask(titulo, null, grupo, '#8b5cf6', catId, esGrupo);
+          onCreateTask={async (titulo, catId, grupo, esGrupo, nota) => {
+            return await handleCreateTask(titulo, null, grupo, '#8b5cf6', catId, esGrupo, nota);
           }}
           onToggleTask={handleToggleTask}
           onDeleteTask={handleDeleteTask}
