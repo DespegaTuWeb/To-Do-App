@@ -177,6 +177,12 @@ export default function ProductivityChat({
       }
       setIsListening(false);
     } else {
+      // Detener cualquier reproducción de voz activa antes de empezar a grabar
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      setCurrentlyPlayingIndex(null);
+
       try {
         const recognition = new SpeechRecognition();
         recognition.lang = 'es-ES';
