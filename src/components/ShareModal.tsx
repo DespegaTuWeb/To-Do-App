@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, UserPlus, Mail, Users, Trash2, ShieldAlert, Loader2, Check, Ban } from 'lucide-react';
 import { supabase, Categoria } from '../lib/supabase';
 
@@ -21,6 +22,22 @@ export default function ShareModal({
   currentUserEmail,
   onRefreshData,
 }: ShareModalProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   const [activeTab, setActiveTab] = useState<'compartir' | 'recibidas'>('compartir');
   const [selectedCatId, setSelectedCatId] = useState<string>('');
   const [emailInput, setEmailInput] = useState('');
@@ -205,19 +222,22 @@ export default function ShareModal({
     }
   };
 
-  return (
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in"
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-md glass-panel rounded-3xl p-6 shadow-2xl animate-check-pop bg-[var(--c-page-bg)]/95 text-[var(--c-text-primary)] border border-[var(--c-border)] flex flex-col gap-4 relative"
+        className="w-full max-w-md glass-panel rounded-3xl p-6 shadow-2xl animate-check-pop text-[var(--c-text-primary)] border border-[var(--c-border)] flex flex-col gap-4 relative"
+        style={{ backgroundColor: 'var(--c-page-bg)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <Users className="w-4 h-4" />
             </div>
             <h2 className="text-base font-bold tracking-tight text-[var(--c-text-primary)]">Colaboración</h2>
@@ -280,7 +300,7 @@ export default function ShareModal({
                     className="w-full bg-[var(--c-input-bg)] border border-[var(--c-input-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--c-text-primary)] focus:outline-none focus:border-indigo-500/50 transition-smooth font-medium cursor-pointer"
                   >
                     {ownedCategories.map((cat) => (
-                      <option key={cat.id} value={cat.id} className="bg-slate-900 text-white dark:bg-slate-950 dark:text-slate-100">
+                      <option key={cat.id} value={cat.id} className="bg-[var(--c-page-bg)] text-[var(--c-text-primary)]">
                         {cat.nombre}
                       </option>
                     ))}
@@ -323,7 +343,7 @@ export default function ShareModal({
               </div>
 
               {errorMessage && (
-                <p className="text-[11px] text-rose-400 bg-rose-500/5 border border-rose-500/10 rounded-xl px-3 py-2 animate-fade-in font-medium">
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 bg-rose-500/5 border border-rose-500/10 rounded-xl px-3 py-2 animate-fade-in font-medium">
                   {errorMessage}
                 </p>
               )}
@@ -354,14 +374,14 @@ export default function ShareModal({
                           <span className="text-xs font-semibold text-[var(--c-text-secondary)] truncate">
                             {collab.email_usuario}
                           </span>
-                          <span className={`text-[9px] font-extrabold ${collab.aceptada ? 'text-emerald-400' : 'text-amber-400 animate-pulse'}`}>
+                          <span className={`text-[9px] font-extrabold ${collab.aceptada ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400 animate-pulse'}`}>
                             {collab.aceptada ? 'Aceptado' : 'Pendiente'}
                           </span>
                         </div>
                         <button
                           onClick={() => handleRemoveCollaborator(collab.id)}
                           disabled={isActionLoading}
-                          className="text-[var(--c-text-muted)] hover:text-rose-400 p-1 rounded-lg hover:bg-rose-500/10 transition-smooth cursor-pointer opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-30 flex-shrink-0"
+                          className="text-[var(--c-text-muted)] hover:text-rose-600 dark:hover:text-rose-400 p-1 rounded-lg hover:bg-rose-500/10 transition-smooth cursor-pointer opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-30 flex-shrink-0"
                           title="Revocar acceso / Cancelar invitación"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -396,7 +416,7 @@ export default function ShareModal({
                     className="flex items-center justify-between p-3 bg-slate-500/5 rounded-xl border border-slate-500/10 hover:border-slate-500/20 transition-smooth gap-3"
                   >
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest leading-none mb-1">
+                      <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest leading-none mb-1">
                         Invitación Recibida
                       </span>
                       <span className="text-xs font-extrabold text-[var(--c-text-primary)] truncate">
@@ -429,6 +449,7 @@ export default function ShareModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

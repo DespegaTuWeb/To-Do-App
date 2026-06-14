@@ -716,7 +716,7 @@ export default function ProductivityChat({
 
   return (
     <div
-      className={`fixed top-0 right-0 h-full z-50 glass-panel border-l border-white/10 shadow-2xl flex flex-col transition-all duration-300 ease-in-out bg-[var(--c-page-bg)]/98 backdrop-blur-md ${
+      className={`fixed top-0 right-0 h-full z-50 glass-panel border-l border-[var(--c-border)] shadow-2xl flex flex-col transition-all duration-300 ease-in-out bg-[var(--c-page-bg)]/98 backdrop-blur-md ${
         isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
       }`}
       style={{
@@ -784,8 +784,8 @@ export default function ProductivityChat({
               <div
                 className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm ${
                   isAI
-                    ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/15'
-                    : 'bg-purple-500/10 text-purple-400 border border-purple-500/15'
+                    ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/15'
+                    : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/15'
                 }`}
               >
                 {isAI ? <Bot className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
@@ -796,7 +796,7 @@ export default function ProductivityChat({
                 <div
                   className={`p-3 rounded-2xl text-xs md:text-sm shadow-sm relative group ${
                     isAI
-                      ? 'glass-panel border-white/5 text-[var(--c-text-primary)] rounded-tl-none'
+                      ? 'glass-panel border-[var(--c-border)] text-[var(--c-text-primary)] rounded-tl-none'
                       : 'bg-indigo-600/90 text-white rounded-tr-none border border-indigo-500/20 font-medium'
                   }`}
                 >
@@ -836,7 +836,7 @@ export default function ProductivityChat({
             <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/15 flex items-center justify-center flex-shrink-0">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             </div>
-            <div className="glass-panel border-white/5 p-3 rounded-2xl rounded-tl-none flex items-center gap-1.5">
+            <div className="glass-panel border-[var(--c-border)] p-3 rounded-2xl rounded-tl-none flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
               <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
               <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" />

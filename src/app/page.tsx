@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { List, CalendarRange, Loader2, Command, Sun, Moon, LogOut, Clipboard, Check, Users, RotateCw } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { List, CalendarRange, Loader2, Command, Sun, Moon, LogOut, Clipboard, Check, Users, RotateCw, Settings } from 'lucide-react';
 import { supabase, Categoria, Pendiente, Rutina, ItemRutina, RegistroRutina } from '../lib/supabase';
 import CategoryTabs from '../components/CategoryTabs';
 import QuickInput from '../components/QuickInput';
@@ -117,13 +118,30 @@ export default function Home() {
   const [hasPendingInvites, setHasPendingInvites] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const isInitialLoadRef = useRef(true);
+  const settingsRef = useRef<HTMLDivElement>(null);
 
   // Al cambiar de categoría activa, reiniciar el grupo activo
   useEffect(() => {
     setActiveGroupName(null);
     setActiveGroupColor(null);
   }, [activeCategoryId]);
+
+  // Cerrar el menú de configuración al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
+      }
+    }
+    if (isSettingsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSettingsOpen]);
 
   // Copiar tareas al portapapeles con fallback robusto
   const handleExportToClipboard = () => {
@@ -1574,7 +1592,7 @@ export default function Home() {
     <div className="flex-1 w-full max-w-3xl mx-auto flex flex-col px-4 md:px-8 py-8 md:py-16 gap-8">
       <header className="flex items-center justify-between gap-4">
         {/* Logo "KEAGO" */}
-        <div className="px-3 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/10 w-fit flex-shrink-0 animate-check-pop">
+        <div className="px-3.5 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/10 w-fit flex-shrink-0 animate-check-pop">
           <span className="font-extrabold text-base tracking-tighter">KEAGO</span>
         </div>
 
@@ -1582,10 +1600,10 @@ export default function Home() {
           {/* Botón Exportar para Gemini */}
           <button
             onClick={handleExportToClipboard}
-            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-smooth cursor-pointer glass-panel border-white/5 hover:text-slate-900 dark:hover:text-slate-100 glass-panel-hover ${
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-smooth cursor-pointer glass-panel border-[var(--c-border)] hover:text-slate-900 dark:hover:text-slate-100 glass-panel-hover ${
               copied
                 ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'
-                : 'text-slate-400'
+                : 'text-[var(--c-text-muted)]'
             }`}
             title={activeCategoryId ? "Copiar tareas de esta categoría" : "Copiar todas las tareas"}
           >
@@ -1636,17 +1654,94 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Botón Compartir */}
-          <button
-            onClick={() => setIsShareOpen(true)}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-smooth cursor-pointer glass-panel border-white/5 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 glass-panel-hover relative"
-            title="Compartir Categoría"
-          >
-            <Users className="w-4 h-4" />
-            {hasPendingInvites && (
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-md shadow-amber-500/20" />
+          {/* Botón Configuración (Settings Dropdown) */}
+          <div ref={settingsRef} className="relative">
+            <button
+              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-smooth cursor-pointer glass-panel border-[var(--c-border)] text-[var(--c-text-muted)] hover:text-slate-900 dark:hover:text-slate-100 glass-panel-hover relative ${
+                isSettingsOpen ? 'bg-indigo-600/10 text-indigo-500 border-indigo-500/30' : ''
+              }`}
+              title="Configuración"
+            >
+              <Settings className="w-4 h-4" />
+              {hasPendingInvites && (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-md shadow-amber-500/20" />
+              )}
+            </button>
+
+            {isSettingsOpen && (
+              <div 
+                className="absolute right-0 mt-2 w-56 glass-panel rounded-2xl p-1.5 shadow-2xl z-50 border border-[var(--c-border)] animate-check-pop flex flex-col gap-0.5 text-[var(--c-text-primary)]"
+                style={{ backgroundColor: 'var(--c-page-bg)' }}
+              >
+                {/* Opción 1: Tema (Modo Claro/Oscuro) */}
+                <button
+                  onClick={() => {
+                    toggleTheme();
+                    setIsSettingsOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 text-left text-xs font-bold transition-smooth cursor-pointer"
+                >
+                  {theme === 'dark' ? (
+                    <>
+                      <Sun className="w-4 h-4 text-amber-500" />
+                      <span>Modo Claro</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="w-4 h-4 text-indigo-600" />
+                      <span>Modo Oscuro</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Opción 2: Colaboración / Compartir */}
+                <button
+                  onClick={() => {
+                    setIsShareOpen(true);
+                    setIsSettingsOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 text-left text-xs font-bold transition-smooth cursor-pointer relative"
+                >
+                  <Users className="w-4 h-4 text-indigo-500" />
+                  <span className="flex-1">Colaboración</span>
+                  {hasPendingInvites && (
+                    <span className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse border-2 border-[var(--c-page-bg)] shadow-md shadow-amber-500/20" />
+                  )}
+                </button>
+
+                {/* Opción 3: Panel de Administración (Solo para Admin) */}
+                {user?.email?.trim().toLowerCase() === 'sebastianjimmysolo@gmail.com' && (
+                  <button
+                    onClick={() => {
+                      setIsAdminOpen(true);
+                      setIsSettingsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 text-left text-xs font-bold transition-smooth cursor-pointer"
+                  >
+                    <Users className="w-4 h-4 text-emerald-500" />
+                    <span>Panel de Admin</span>
+                  </button>
+                )}
+
+                {/* Separador */}
+                <div className="h-[1px] bg-[var(--c-border)] my-1" />
+
+                {/* Opción 4: Cerrar Sesión */}
+                <button
+                  onClick={async () => {
+                    setIsSettingsOpen(false);
+                    const { error } = await supabase.auth.signOut();
+                    if (error) alert('Error al cerrar sesión.');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-left text-xs font-bold transition-smooth cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Cerrar Sesión</span>
+                </button>
+              </div>
             )}
-          </button>
+          </div>
         </div>
       </header>
 
@@ -1655,7 +1750,7 @@ export default function Home() {
         <div className="glass-panel border-red-500/20 bg-red-500/5 rounded-2xl p-4 text-xs md:text-sm text-red-400 flex flex-col gap-2 animate-check-pop">
           <span className="font-semibold">⚠️ Configuración Pendiente:</span>
           <p>{errorMessage}</p>
-          <div className="text-[10px] text-slate-400 mt-1 font-mono bg-black/30 p-2 rounded border border-white/5">
+          <div className="text-[10px] text-[var(--c-text-muted)] mt-1 font-mono bg-black/30 p-2 rounded border border-[var(--c-border)]">
             1. Ejecuta el script SQL en el editor SQL de Supabase.<br />
             2. Crea el archivo .env.local en la raíz del proyecto.<br />
             3. Rellena NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.
@@ -1691,7 +1786,7 @@ export default function Home() {
 
           {/* Barra de Pestañas Dinámicas */}
           {viewMode === 'list' && (
-            <section className="flex flex-col gap-1 border-b border-white/5 pb-2">
+            <section className="flex flex-col gap-1 border-b border-[var(--c-divider)] pb-2">
               <CategoryTabs
                 categories={categories}
                 activeCategoryId={activeCategoryId}
@@ -1778,55 +1873,18 @@ export default function Home() {
         />
       )}
 
-      {/* Botones Flotantes en la esquina inferior derecha */}
-      <div className="fixed bottom-6 right-6 z-[40] flex items-center gap-3">
-        {/* Botón de Cerrar Sesión */}
-        <button
-          onClick={async () => {
-            const { error } = await supabase.auth.signOut();
-            if (error) alert('Error al cerrar sesión.');
-          }}
-          className="w-11 h-11 rounded-full glass-panel glass-panel-hover flex items-center justify-center text-slate-400 hover:text-red-400 shadow-2xl transition-smooth cursor-pointer border border-white/10"
-          title="Cerrar Sesión"
-        >
-          <LogOut className="w-4.5 h-4.5" />
-        </button>
-
-        {/* Botón Flotante de Tema */}
-        <button
-          onClick={toggleTheme}
-          className="w-11 h-11 rounded-full glass-panel glass-panel-hover flex items-center justify-center text-slate-400 hover:text-white shadow-2xl transition-smooth cursor-pointer border border-white/10"
-          title={theme === 'dark' ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
-        >
-          {theme === 'dark' ? (
-            <Sun className="w-5 h-5 text-amber-400 animate-check-pop" />
-          ) : (
-            <Moon className="w-5 h-5 text-indigo-600 animate-check-pop" />
-          )}
-        </button>
-
-        {/* Botón Flotante de Panel de Administración (Solo para el Admin) */}
-        {user?.email?.trim().toLowerCase() === 'sebastianjimmysolo@gmail.com' && (
-          <button
-            onClick={() => setIsAdminOpen(true)}
-            className="w-11 h-11 rounded-full glass-panel glass-panel-hover flex items-center justify-center text-slate-400 hover:text-indigo-400 shadow-2xl transition-smooth cursor-pointer border border-white/10 animate-check-pop"
-            title="Panel de Administración Premium"
-          >
-            <Users className="w-5 h-5" />
-          </button>
-        )}
-
-        {/* Botón Flotante de Chat AI (Solo para Premium) */}
-        {isPremium && (
+      {/* Botón Flotante de Chat AI (Solo para Premium) */}
+      {isPremium && (
+        <div className="fixed bottom-6 right-6 z-[40]">
           <button
             onClick={() => setIsChatOpen(true)}
-            className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-2xl hover:scale-[1.08] hover:shadow-indigo-600/30 transition-smooth cursor-pointer border border-white/10 animate-check-pop"
+            className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-2xl hover:scale-[1.08] hover:shadow-indigo-600/30 transition-smooth cursor-pointer border border-[var(--c-border)]/40 animate-check-pop"
             title="Preguntar a Keago AI"
           >
             <Sparkles className="w-4.5 h-4.5 animate-pulse" />
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Toast de Notificación Flotante */}
       {toastMessage && (
@@ -1877,13 +1935,14 @@ export default function Home() {
       )}
 
       {/* Modal para convertir categoría en subcategoría */}
-      {convertingCategoryId && (
+      {convertingCategoryId && typeof window !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in"
           onClick={() => setConvertingCategoryId(null)}
         >
           <div 
-            className="w-full max-w-sm glass-panel rounded-3xl p-6 shadow-2xl animate-check-pop bg-[var(--c-page-bg)]/95 text-[var(--c-text-primary)] border border-[var(--c-border)] flex flex-col gap-4"
+            className="w-full max-w-sm glass-panel rounded-3xl p-6 shadow-2xl animate-check-pop text-[var(--c-text-primary)] border border-[var(--c-border)] flex flex-col gap-4"
+            style={{ backgroundColor: 'var(--c-page-bg)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col gap-1">
@@ -1902,13 +1961,13 @@ export default function Home() {
                 onChange={(e) => setTargetParentCategoryId(e.target.value)}
                 className="w-full bg-[var(--c-input-bg)] border border-[var(--c-input-border)] rounded-xl px-3 py-2.5 text-xs text-[var(--c-text-primary)] focus:outline-none focus:border-indigo-500/50 transition-smooth font-medium cursor-pointer"
               >
-                <option value="inbox" className="bg-slate-900 text-white dark:bg-slate-950 dark:text-slate-100">
+                <option value="inbox" className="bg-[var(--c-page-bg)] text-[var(--c-text-primary)]">
                   Inbox / Hoy
                 </option>
                 {categories
                   .filter((c) => c.id !== convertingCategoryId)
                   .map((cat) => (
-                    <option key={cat.id} value={cat.id} className="bg-slate-900 text-white dark:bg-slate-950 dark:text-slate-100">
+                    <option key={cat.id} value={cat.id} className="bg-[var(--c-page-bg)] text-[var(--c-text-primary)]">
                       {cat.nombre}
                     </option>
                   ))}
@@ -1935,7 +1994,8 @@ export default function Home() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Asistente de Productividad Chat AI */}

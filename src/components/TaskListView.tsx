@@ -286,7 +286,7 @@ export default function TaskListView({
                 className={`backdrop-blur-xl border rounded-xl p-3 transition-all duration-300 flex flex-col gap-2.5 ${
                   isActive
                     ? 'bg-indigo-600/5 border-indigo-500/30 shadow-lg shadow-indigo-500/5'
-                    : 'bg-white/5 border-white/10'
+                    : 'bg-[var(--c-surface)] border-[var(--c-border)]'
                 } ${isDraggingGroup ? 'opacity-25 scale-[0.98]' : 'opacity-100'}`}
               >
                 {/* Cabecera del Grupo (Acordeón) y Zona de Arrastre para Subcategoría */}
@@ -304,14 +304,14 @@ export default function TaskListView({
                   }}
                   onDragOver={(e) => handleDragOverGroupHeader(e, groupName)}
                   onDragEnd={handleDragEnd}
-                  className={`flex items-center justify-between gap-2 border-b border-white/5 pb-1.5 transition-colors ${
-                    groupName !== 'General' ? 'cursor-grab active:cursor-grabbing hover:bg-white/[0.02] rounded px-1 -mx-1' : ''
+                  className={`flex items-center justify-between gap-2 border-b border-[var(--c-divider)] pb-1.5 transition-colors ${
+                    groupName !== 'General' ? 'cursor-grab active:cursor-grabbing hover:bg-[var(--c-surface-hover)] rounded px-1 -mx-1' : ''
                   }`}
                   title={groupName !== 'General' ? 'Mantén presionado y arrastra para reordenar o mover a otra pestaña' : undefined}
                 >
                   <button
                     onClick={() => handleGroupHeaderClick(groupName)}
-                    className="flex items-center gap-2 text-xs font-bold text-luxury-primary hover:text-white transition-smooth cursor-pointer"
+                    className="flex items-center gap-2 text-xs font-bold text-luxury-primary hover:text-[var(--c-text-primary)] transition-smooth cursor-pointer"
                   >
                     <ChevronDown
                       className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${
@@ -320,7 +320,7 @@ export default function TaskListView({
                     />
                     <Folder className="w-3.5 h-3.5 text-indigo-400" />
                     <span>{groupName}</span>
-                    <span className="text-[10px] bg-white/10 text-slate-300 px-1.5 py-0.5 rounded-full font-medium">
+                    <span className="text-[10px] bg-[var(--c-border)] text-luxury-secondary px-1.5 py-0.5 rounded-full font-medium">
                       {groupTasks.length}
                     </span>
                   </button>
@@ -333,7 +333,7 @@ export default function TaskListView({
                           e.stopPropagation();
                           onOpenDetail(groupDef);
                         }}
-                        className="p-1 text-slate-500 hover:text-indigo-400 hover:bg-white/5 rounded transition-smooth cursor-pointer"
+                        className="p-1 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-[var(--c-surface-hover)] rounded transition-smooth cursor-pointer"
                         title="Editar detalles de la subcategoría"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
@@ -347,7 +347,7 @@ export default function TaskListView({
                           e.stopPropagation();
                           onPromoteGroupToCategory(groupName);
                         }}
-                        className="p-1 text-slate-500 hover:text-indigo-400 hover:bg-white/5 rounded transition-smooth cursor-pointer"
+                        className="p-1 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-[var(--c-surface-hover)] rounded transition-smooth cursor-pointer"
                         title="Promover a pestaña de Categoría"
                       >
                         <FolderPlus className="w-3.5 h-3.5" />
@@ -365,7 +365,7 @@ export default function TaskListView({
                             onConvertGroupToTask(groupName);
                           }
                         }}
-                        className="p-1 text-slate-500 hover:text-rose-400 hover:bg-white/5 rounded transition-smooth cursor-pointer"
+                        className="p-1 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-[var(--c-surface-hover)] rounded transition-smooth cursor-pointer"
                         title="Deshacer subcategoría (convertir a tarea)"
                       >
                         <Undo2 className="w-3.5 h-3.5" />
@@ -387,7 +387,7 @@ export default function TaskListView({
 
                 {/* Descripción de la subcategoría si existe y no está colapsado */}
                 {!isCollapsed && groupDef && groupDef.nota && (
-                  <p className="text-[11px] text-luxury-secondary/85 bg-white/[0.01] border border-white/5 rounded-lg px-3 py-2 ml-6 mr-2 -mt-1 mb-1 leading-relaxed font-normal italic">
+                  <p className="text-[11px] text-luxury-secondary/85 bg-[var(--c-surface)] border border-[var(--c-border)] rounded-lg px-3 py-2 ml-6 mr-2 -mt-1 mb-1 leading-relaxed font-normal italic">
                     {groupDef.nota}
                   </p>
                 )}
@@ -429,7 +429,7 @@ export default function TaskListView({
                       );
                     })
                   ) : (
-                    <div className="text-[10px] text-luxury-muted italic py-3 text-center border border-dashed border-white/5 rounded-xl">
+                    <div className="text-[10px] text-luxury-muted italic py-3 text-center border border-dashed border-[var(--c-border)] rounded-xl">
                       Subcategoría vacía. Escribe arriba o arrastra tareas aquí.
                     </div>
                   )}
@@ -439,7 +439,7 @@ export default function TaskListView({
           })
         ) : (
           /* Estado vacío hermoso */
-          <div className="flex flex-col items-center justify-center py-12 px-4 glass-panel rounded-2xl border-dashed border-white/10 text-center">
+          <div className="flex flex-col items-center justify-center py-12 px-4 glass-panel rounded-2xl border-dashed border-[var(--c-border)] text-center">
             <div className="w-12 h-12 bg-indigo-500/5 border border-indigo-500/10 rounded-full flex items-center justify-center mb-4 text-luxury-secondary">
               <Sparkles className="w-5 h-5 text-yellow-400/80 animate-pulse" />
             </div>
@@ -453,7 +453,7 @@ export default function TaskListView({
 
       {/* Lista de Tareas Completadas (Ocultables) */}
       {completedTasks.length > 0 && (
-        <div className="flex flex-col gap-2 border-t border-white/5 pt-4">
+        <div className="flex flex-col gap-2 border-t border-[var(--c-divider)] pt-4">
           <button
             onClick={() => setShowCompleted(!showCompleted)}
             className="flex items-center gap-1.5 self-start text-xs font-bold text-luxury-secondary hover:text-luxury-primary transition-smooth cursor-pointer"

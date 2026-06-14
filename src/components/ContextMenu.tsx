@@ -59,7 +59,7 @@ export default function ContextMenu({
       className="fixed z-50 min-w-[180px] glass-panel rounded-lg shadow-2xl p-1 animate-check-pop"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-slate-400 border-b border-white/5 font-semibold">
+      <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--c-text-muted)] border-b border-[var(--c-border)] font-semibold">
         {categoryName}
       </div>
       <button
@@ -67,9 +67,9 @@ export default function ContextMenu({
           onRename();
           onClose();
         }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-200 hover:bg-white/10 rounded-md transition-smooth text-left cursor-pointer"
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--c-text-primary)] hover:bg-black/5 dark:hover:bg-white/10 rounded-md transition-smooth text-left cursor-pointer"
       >
-        <Edit2 className="w-3.5 h-3.5 text-blue-400" />
+        <Edit2 className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
         Renombrar
       </button>
 
@@ -79,9 +79,9 @@ export default function ContextMenu({
             onConvertToSubcategory();
             onClose();
           }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-200 hover:bg-white/10 rounded-md transition-smooth text-left cursor-pointer"
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--c-text-primary)] hover:bg-black/5 dark:hover:bg-white/10 rounded-md transition-smooth text-left cursor-pointer"
         >
-          <FolderPlus className="w-3.5 h-3.5 text-indigo-400" />
+          <FolderPlus className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
           Convertir a Subcategoría
         </button>
       )}
@@ -91,7 +91,7 @@ export default function ContextMenu({
           onDelete();
           onClose();
         }}
-        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 rounded-md transition-smooth text-left font-medium cursor-pointer"
+        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 dark:text-red-400 hover:bg-rose-500/10 rounded-md transition-smooth text-left font-medium cursor-pointer"
       >
         <Trash2 className="w-3.5 h-3.5" />
         Eliminar

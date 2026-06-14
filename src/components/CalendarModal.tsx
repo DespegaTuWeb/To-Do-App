@@ -132,29 +132,30 @@ export default function CalendarModal({
       onMouseDown={(e) => e.stopPropagation()} // Prevenir eventos de drag
     >
       <div 
-        className="glass-panel border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-check-pop"
+        className="glass-panel border-[var(--c-border)] rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-check-pop text-[var(--c-text-primary)]"
+        style={{ backgroundColor: 'var(--c-page-bg)' }}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()} // Prevenir eventos de drag
       >
         {/* Cabecera del modal */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-white/5">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--c-border)]">
           <div className="flex items-center gap-2 text-luxury-primary">
             <CalendarDays className="w-4 h-4 text-indigo-500" />
             <span className="text-sm font-semibold">Seleccionar fecha</span>
           </div>
           <button 
             onClick={onClose}
-            className="p-1 hover:bg-white/10 rounded-full transition-smooth text-luxury-secondary hover:text-luxury-primary cursor-pointer"
+            className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-smooth text-luxury-secondary hover:text-luxury-primary cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Navegador de mes/año */}
-        <div className="flex items-center justify-between px-5 py-3 bg-white/[0.02] border-b border-white/5">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--c-border)] bg-black/5 dark:bg-white/[0.02]">
           <button 
             onClick={handlePrevMonth}
-            className="p-1.5 hover:bg-white/5 rounded-lg text-luxury-secondary hover:text-luxury-primary transition-smooth cursor-pointer"
+            className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg text-luxury-secondary hover:text-luxury-primary transition-smooth cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -163,7 +164,7 @@ export default function CalendarModal({
           </span>
           <button 
             onClick={handleNextMonth}
-            className="p-1.5 hover:bg-white/5 rounded-lg text-luxury-secondary hover:text-luxury-primary transition-smooth cursor-pointer"
+            className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg text-luxury-secondary hover:text-luxury-primary transition-smooth cursor-pointer"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -210,7 +211,7 @@ export default function CalendarModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-white/5 bg-white/[0.01]">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-[var(--c-border)]">
           <button
             onClick={handleClear}
             className="text-[11px] font-bold text-luxury-muted hover:text-rose-500 px-3 py-1.5 hover:bg-rose-500/5 rounded-lg transition-smooth cursor-pointer"
@@ -219,7 +220,7 @@ export default function CalendarModal({
           </button>
           <button
             onClick={onClose}
-            className="text-[11px] font-bold text-luxury-secondary hover:text-luxury-primary px-3 py-1.5 hover:bg-white/5 rounded-lg transition-smooth cursor-pointer"
+            className="text-[11px] font-bold text-luxury-secondary hover:text-luxury-primary px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-smooth cursor-pointer"
           >
             Cerrar
           </button>

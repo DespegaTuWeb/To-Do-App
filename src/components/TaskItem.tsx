@@ -166,7 +166,7 @@ export default function TaskItem({
       } as React.CSSProperties}
     >
       {/* Fecha y hora de creación sutil en el borde superior derecho */}
-      <span className="absolute top-1 right-2.5 text-[8px] md:text-[9px] text-slate-500/60 font-semibold tracking-wider pointer-events-none transition-opacity duration-200 group-hover:opacity-0 select-none">
+      <span className="absolute top-1 right-2.5 text-[8px] md:text-[9px] text-luxury-muted/60 font-semibold tracking-wider pointer-events-none transition-opacity duration-200 group-hover:opacity-0 select-none">
         {new Date(task.created_at).toLocaleDateString('es-ES', {
           day: '2-digit',
           month: '2-digit',
@@ -222,7 +222,7 @@ export default function TaskItem({
                   onBlur={() => onDragDisableChange?.(false)}
                   onMouseEnter={() => onDragDisableChange?.(true)}
                   onMouseLeave={() => onDragDisableChange?.(false)}
-                  className="bg-transparent text-xs text-luxury-secondary focus:outline-none border-b border-indigo-500/5 w-full py-0.5 placeholder:text-slate-500 font-normal"
+                  className="bg-transparent text-xs text-luxury-secondary focus:outline-none border-b border-indigo-500/5 w-full py-0.5 placeholder:text-luxury-muted font-normal"
                 />
               </div>
             ) : (
@@ -347,10 +347,10 @@ export default function TaskItem({
 
       {/* Dropdown de Detalles Expandibles */}
       {isExpanded && !isEditing && (
-        <div className="mt-2 pt-2.5 border-t border-white/5 flex flex-col gap-3 text-xs animate-fade-in pl-[52px]">
+        <div className="mt-2 pt-2.5 border-t border-[var(--c-divider)] flex flex-col gap-3 text-xs animate-fade-in pl-[52px]">
           {/* Descripción */}
           <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Descripción</span>
+            <span className="text-[10px] font-bold text-luxury-muted uppercase tracking-wide">Descripción</span>
             <textarea
               ref={textareaRef}
               value={descText}
@@ -369,12 +369,12 @@ export default function TaskItem({
               placeholder="Añadir una descripción..."
               draggable={false}
               onDragStart={(e) => e.stopPropagation()}
-              className="w-full min-h-[60px] border border-slate-200/80 dark:border-white/20 bg-white dark:bg-white/10 text-slate-800 dark:text-slate-200 text-xs focus:outline-none focus:border-indigo-500/50 dark:focus:bg-white/15 rounded-xl p-2.5 resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500 leading-relaxed font-normal transition-smooth shadow-sm overflow-hidden"
+              className="w-full min-h-[60px] glass-input text-xs rounded-xl p-2.5 resize-none placeholder:text-luxury-muted leading-relaxed font-normal transition-smooth shadow-sm overflow-hidden"
             />
           </div>
 
           {/* Fecha Límite */}
-          <div className="flex items-center justify-between gap-4 mt-1 border-t border-white/5 pt-2.5">
+          <div className="flex items-center justify-between gap-4 mt-1 border-t border-[var(--c-divider)] pt-2.5">
             <div 
               onClick={(e) => {
                 e.stopPropagation();
@@ -384,10 +384,10 @@ export default function TaskItem({
               onMouseLeave={() => onDragDisableChange?.(false)}
               onTouchStart={() => onDragDisableChange?.(true)}
               onTouchEnd={() => onDragDisableChange?.(false)}
-              className="flex flex-col gap-0.5 cursor-pointer hover:bg-white/5 p-1 -m-1 rounded-lg transition-smooth select-text"
+              className="flex flex-col gap-0.5 cursor-pointer hover:bg-[var(--c-surface-hover)] p-1 -m-1 rounded-lg transition-smooth select-text"
               title="Haga clic para cambiar fecha límite"
             >
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Fecha Límite</span>
+              <span className="text-[10px] font-bold text-luxury-muted uppercase tracking-wide">Fecha Límite</span>
               <span className="text-luxury-secondary font-medium pl-0.5">
                 {task.fecha_limite ? formatSpanishDate(task.fecha_limite) : 'Sin fecha límite'}
               </span>

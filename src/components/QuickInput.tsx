@@ -169,13 +169,13 @@ export default function QuickInput({
         
         {/* Indicador de fecha activa */}
         {fechaLimite && (
-          <div className="flex items-center gap-1.5 self-start px-2.5 py-1 bg-white/5 rounded-full border border-white/5 animate-check-pop">
+          <div className="flex items-center gap-1.5 self-start px-2.5 py-1 bg-[var(--c-surface)] rounded-full border border-[var(--c-border)] animate-check-pop">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-            <span className="text-[10px] text-slate-400">Fecha límite: {fechaLimite}</span>
+            <span className="text-[10px] text-luxury-secondary">Fecha límite: {fechaLimite}</span>
             <button
               type="button"
               onClick={() => setFechaLimite('')}
-              className="text-[10px] text-slate-500 hover:text-red-400 font-semibold ml-1 cursor-pointer"
+              className="text-[10px] text-luxury-muted hover:text-red-500 font-semibold ml-1 cursor-pointer"
             >
               quitar
             </button>
@@ -195,7 +195,7 @@ export default function QuickInput({
       {showSearchDropdown && (
         <div 
           ref={dropdownRef}
-          className="absolute top-full left-0 right-0 mt-2 z-50 p-4 rounded-xl bg-slate-950/95 border border-white/10 backdrop-blur-xl shadow-2xl flex flex-col gap-3 max-h-[350px] animate-fade-in"
+          className="absolute top-full left-0 right-0 mt-2 z-50 p-4 rounded-xl bg-[var(--c-page-bg)]/98 border border-[var(--c-border)] backdrop-blur-xl shadow-2xl flex flex-col gap-3 max-h-[350px] animate-fade-in"
         >
           <div className="relative w-full flex items-center">
             <input
@@ -204,19 +204,19 @@ export default function QuickInput({
               value={searchVal}
               onChange={(e) => setSearchVal(e.target.value)}
               placeholder="Buscar en tareas, descripciones o subcategorías..."
-              className="w-full bg-white/5 border border-white/10 px-3.5 py-2.5 rounded-lg text-xs md:text-sm text-luxury-primary placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/40"
+              className="w-full glass-input px-3.5 py-2.5 rounded-lg text-xs md:text-sm text-luxury-primary placeholder:text-luxury-muted focus:outline-none"
             />
             {searchVal && (
               <button 
                 onClick={() => setSearchVal('')}
-                className="absolute right-3.5 text-[10px] text-slate-500 hover:text-slate-300 font-bold"
+                className="absolute right-3.5 text-[10px] text-luxury-muted hover:text-luxury-primary font-bold"
               >
                 Limpiar
               </button>
             )}
           </div>
 
-          <div className="flex flex-col gap-1 overflow-y-auto divide-y divide-white/5 pr-1">
+          <div className="flex flex-col gap-1 overflow-y-auto divide-y divide-[var(--c-divider)] pr-1">
             {searchResults.length > 0 ? (
               searchResults.map((task) => {
                 const { color, nombre } = getCategoryDetails(task.categoria_id);
@@ -227,7 +227,7 @@ export default function QuickInput({
                       if (onOpenDetail) onOpenDetail(task);
                       setShowSearchDropdown(false);
                     }}
-                    className="flex items-center justify-between gap-3 py-2.5 px-2 hover:bg-white/5 rounded-lg transition-smooth cursor-pointer group/item text-left"
+                    className="flex items-center justify-between gap-3 py-2.5 px-2 hover:bg-[var(--c-surface-hover)] rounded-lg transition-smooth cursor-pointer group/item text-left"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <button
@@ -237,7 +237,7 @@ export default function QuickInput({
                             await onToggleTask(task.id, !task.completado);
                           }
                         }}
-                        className="flex-shrink-0 text-slate-500 hover:text-luxury-primary transition-smooth focus:outline-none"
+                        className="flex-shrink-0 text-luxury-muted hover:text-luxury-primary transition-smooth focus:outline-none"
                       >
                         {task.completado ? (
                           <CheckCircle className="w-4 h-4 text-emerald-500 animate-check-pop fill-emerald-500/10" />
@@ -252,7 +252,7 @@ export default function QuickInput({
                           {task.titulo}
                         </span>
                         {task.grupo_nombre && (
-                          <span className="text-[9px] text-slate-500 font-medium tracking-wide">
+                          <span className="text-[9px] text-luxury-muted font-medium tracking-wide">
                             Subcategoría: {task.grupo_nombre}
                           </span>
                         )}
@@ -273,7 +273,7 @@ export default function QuickInput({
                 );
               })
             ) : (
-              <span className="text-[10px] text-slate-500 italic py-4 text-center">
+              <span className="text-[10px] text-luxury-muted italic py-4 text-center">
                 No se encontraron coincidencias.
               </span>
             )}

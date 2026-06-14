@@ -205,12 +205,12 @@ export default function TaskCalendarView({
       {/* 1. CUADRO PRINCIPAL DEL CALENDARIO */}
       <div className="flex-1 flex flex-col gap-4">
         {/* Cabecera superior con pestañas y controles de fecha */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--c-border)] pb-4">
           <div className="flex flex-col">
-            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <h1 className="text-xl font-bold text-[var(--c-text-primary)] flex items-center gap-2">
               📅 Calendario y Planificación
             </h1>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-[var(--c-text-muted)] mt-1">
               {activeTab === 'week' && `Semana de ${WEEKDAY_NAMES[0]} ${toLocalYYYYMMDD(getWeekDays()[0]).split('-').reverse().join('/')}`}
               {activeTab === 'month' && `${MONTH_NAMES[anchorDate.getMonth()]} ${anchorDate.getFullYear()}`}
               {activeTab === 'year' && `Año ${anchorDate.getFullYear()}`}
@@ -219,15 +219,15 @@ export default function TaskCalendarView({
 
           <div className="flex items-center gap-3">
             {/* Selector de tipo de vista */}
-            <div className="flex p-0.5 bg-black/20 border border-white/5 rounded-xl text-[11px] font-bold">
+            <div className="flex p-0.5 bg-black/5 dark:bg-black/20 border border-[var(--c-border)] rounded-xl text-[11px] font-bold">
               {(['week', 'month', 'year'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`px-3 py-1.5 rounded-lg uppercase tracking-wider transition-smooth cursor-pointer ${
                     activeTab === tab 
-                      ? 'bg-indigo-600/20 border border-indigo-500/20 text-indigo-400 font-extrabold shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                      ? 'bg-indigo-600/20 border border-indigo-500/20 text-indigo-500 dark:text-indigo-400 font-extrabold shadow-sm'
+                      : 'text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)] border border-transparent'
                   }`}
                 >
                   {tab === 'week' ? 'Semana' : tab === 'month' ? 'Mes' : 'Año'}
@@ -236,23 +236,23 @@ export default function TaskCalendarView({
             </div>
 
             {/* Controles de navegación */}
-            <div className="flex items-center gap-1 bg-black/20 border border-white/5 rounded-xl p-0.5">
+            <div className="flex items-center gap-1 bg-black/5 dark:bg-black/20 border border-[var(--c-border)] rounded-xl p-0.5">
               <button
                 onClick={handlePrev}
-                className="p-1.5 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition-smooth cursor-pointer"
+                className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)] rounded-lg transition-smooth cursor-pointer"
                 title="Anterior"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={handleToday}
-                className="px-2.5 py-1 text-[10px] font-bold hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition-smooth cursor-pointer border-l border-r border-white/5"
+                className="px-2.5 py-1 text-[10px] font-bold hover:bg-black/5 dark:hover:bg-white/5 text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)] rounded-lg transition-smooth cursor-pointer border-l border-r border-[var(--c-border)]"
               >
                 Hoy
               </button>
               <button
                 onClick={handleNext}
-                className="p-1.5 hover:bg-white/5 text-slate-400 hover:text-white rounded-lg transition-smooth cursor-pointer"
+                className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)] rounded-lg transition-smooth cursor-pointer"
                 title="Siguiente"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -281,12 +281,12 @@ export default function TaskCalendarView({
                       ? 'border-indigo-500/40 bg-indigo-500/[0.03] scale-[1.01]' 
                       : isToday 
                         ? 'border-indigo-500/30 bg-indigo-500/[0.01]' 
-                        : 'border-white/5'
+                        : 'border-[var(--c-border)]'
                   }`}
                 >
                   {/* Cabecera del día */}
                   <div className={`flex items-center justify-between pb-2 border-b ${
-                    isToday ? 'border-indigo-500/20 text-indigo-400' : 'border-white/5 text-slate-300'
+                    isToday ? 'border-indigo-500/20 text-indigo-500' : 'border-[var(--c-border)] text-[var(--c-text-secondary)]'
                   }`}>
                     <div className="flex flex-col">
                       <span className="text-[10px] font-extrabold tracking-wider uppercase opacity-60">
@@ -303,8 +303,8 @@ export default function TaskCalendarView({
                           setActiveAddCell(activeAddCell === dayStr ? null : dayStr);
                           setQuickTitle('');
                         }}
-                        className={`p-1 rounded-md transition-smooth hover:bg-white/5 cursor-pointer ${
-                          activeAddCell === dayStr ? 'text-rose-400' : 'text-slate-400 hover:text-white'
+                        className={`p-1 rounded-md transition-smooth hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer ${
+                          activeAddCell === dayStr ? 'text-rose-400' : 'text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)]'
                         }`}
                         title="Agregar tarea hoy"
                       >
@@ -323,11 +323,11 @@ export default function TaskCalendarView({
                         value={quickTitle}
                         onChange={(e) => setQuickTitle(e.target.value)}
                         placeholder="Nueva tarea..."
-                        className="flex-1 px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-[11px] text-white focus:outline-none focus:border-indigo-500/50"
+                        className="flex-1 px-2 py-1 bg-[var(--c-input-bg)] border border-[var(--c-input-border)] rounded-lg text-[11px] text-[var(--c-text-primary)] focus:outline-none focus:border-indigo-500/50"
                       />
                       <button
                         type="submit"
-                        className="p-1 bg-indigo-600 text-white rounded-lg text-xs cursor-pointer"
+                        className="p-1 bg-indigo-600 text-white rounded-lg text-xs cursor-pointer flex items-center justify-center"
                       >
                         <Check className="w-3 h-3" />
                       </button>
@@ -353,11 +353,11 @@ export default function TaskCalendarView({
                                 e.stopPropagation();
                                 await onToggleTask(task.id, !task.completado);
                               }}
-                              className="text-slate-400 hover:text-emerald-400 cursor-pointer mt-0.5 flex-shrink-0"
+                              className="text-[var(--c-text-muted)] hover:text-emerald-500 cursor-pointer mt-0.5 flex-shrink-0"
                             >
                               <Circle className="w-3.5 h-3.5" />
                             </button>
-                            <span className="text-[11px] font-bold text-slate-200 leading-snug line-clamp-3">
+                            <span className="text-[11px] font-bold text-[var(--c-text-primary)] leading-snug line-clamp-3">
                               {task.titulo}
                             </span>
                           </div>
@@ -376,9 +376,9 @@ export default function TaskCalendarView({
                         </div>
                       ))
                     ) : (
-                      <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-xl py-6 opacity-45">
-                        <Sparkles className="w-3.5 h-3.5 text-slate-400 mb-1" />
-                        <span className="text-[9px] font-semibold italic text-slate-300">Libre</span>
+                      <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-[var(--c-border)] rounded-xl py-6 opacity-45">
+                        <Sparkles className="w-3.5 h-3.5 text-[var(--c-text-muted)] mb-1" />
+                        <span className="text-[9px] font-semibold italic text-[var(--c-text-muted)]">Libre</span>
                       </div>
                     )}
                   </div>
@@ -392,7 +392,7 @@ export default function TaskCalendarView({
         {activeTab === 'month' && (
           <div className="flex flex-col gap-1.5 w-full">
             {/* Encabezado columnas Lunes - Domingo */}
-            <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-extrabold text-slate-300 uppercase tracking-widest pb-1">
+            <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-extrabold text-[var(--c-text-muted)] uppercase tracking-widest pb-1">
               {WEEKDAY_NAMES.map(name => (
                 <div key={name}>{name}</div>
               ))}
@@ -418,11 +418,11 @@ export default function TaskCalendarView({
                         ? 'border-indigo-500/40 bg-indigo-500/[0.03] scale-[1.01]' 
                         : isToday 
                           ? 'border-indigo-500/25 bg-indigo-500/[0.01]' 
-                          : 'border-white/5'
-                    } ${isCurrentMonth ? 'opacity-100' : 'opacity-35'}`}
+                          : 'border-[var(--c-border)]'
+                    } ${isCurrentMonth ? 'opacity-100 bg-[var(--c-surface)]' : 'opacity-35 bg-[var(--c-surface)]/40'}`}
                   >
                     {/* Número del día */}
-                    <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-300">
+                    <div className="flex items-center justify-between text-[10px] font-extrabold text-[var(--c-text-secondary)]">
                       <span className={`w-4 h-4 rounded-full flex items-center justify-center ${
                         isToday ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20' : ''
                       }`}>
@@ -434,7 +434,7 @@ export default function TaskCalendarView({
                             setActiveAddCell(activeAddCell === dayStr ? null : dayStr);
                             setQuickTitle('');
                           }}
-                          className="text-slate-400 hover:text-white transition-smooth cursor-pointer"
+                          className="text-[var(--c-text-muted)] hover:text-[var(--c-text-primary)] transition-smooth cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -451,11 +451,11 @@ export default function TaskCalendarView({
                           value={quickTitle}
                           onChange={(e) => setQuickTitle(e.target.value)}
                           placeholder="Ok..."
-                          className="flex-1 px-1.5 py-0.5 bg-slate-800 border border-white/10 rounded text-[9px] text-white focus:outline-none focus:border-indigo-500/50 w-full"
+                          className="flex-1 px-1.5 py-0.5 bg-[var(--c-input-bg)] border border-[var(--c-input-border)] rounded text-[9px] text-[var(--c-text-primary)] focus:outline-none focus:border-indigo-500/50 w-full"
                         />
                         <button
                           type="submit"
-                          className="p-0.5 bg-indigo-600 text-white rounded text-[9px] cursor-pointer"
+                          className="p-0.5 bg-indigo-600 text-white rounded text-[9px] cursor-pointer flex items-center justify-center"
                         >
                           <Check className="w-2.5 h-2.5" />
                         </button>
@@ -471,7 +471,7 @@ export default function TaskCalendarView({
                             draggable
                             onDragStart={(e) => handleDragStart(e, task.id)}
                             onClick={() => setSelectedTask(task)}
-                            className="p-1 rounded bg-white/[0.02] border-l-2 text-[9px] font-bold text-slate-300 truncate cursor-grab hover:bg-white/[0.05] flex items-center gap-1"
+                            className="p-1 rounded bg-[var(--c-input-bg)] border border-[var(--c-border)] border-l-2 text-[9px] font-bold text-[var(--c-text-secondary)] truncate cursor-grab hover:bg-[var(--c-border-hover)] flex items-center gap-1"
                             style={{ borderLeftColor: getCategoryDetails(task.categoria_id).color }}
                             title={task.titulo}
                           >
@@ -530,19 +530,19 @@ export default function TaskCalendarView({
                     setAnchorDate(newDate);
                     setActiveTab('month');
                   }}
-                  className="p-3 bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 rounded-2xl flex flex-col gap-2 transition-all cursor-pointer hover:scale-[1.01] hover:border-indigo-500/10"
+                  className="p-3 bg-[var(--c-surface)] hover:bg-[var(--c-surface-hover)] border border-[var(--c-border)] rounded-2xl flex flex-col gap-2 transition-all cursor-pointer hover:scale-[1.01] hover:border-indigo-500/20"
                 >
-                  <div className="flex items-center justify-between border-b border-white/5 pb-1">
-                    <span className="text-xs font-bold text-slate-200">{monthName}</span>
+                  <div className="flex items-center justify-between border-b border-[var(--c-border)] pb-1">
+                    <span className="text-xs font-bold text-[var(--c-text-primary)]">{monthName}</span>
                     {monthTasks.length > 0 && (
-                      <span className="text-[9px] font-extrabold bg-indigo-600/10 text-indigo-400 px-1.5 py-0.2 rounded border border-indigo-500/15">
+                      <span className="text-[9px] font-extrabold bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.2 rounded border border-indigo-500/15">
                         {monthTasks.length} act.
                       </span>
                     )}
                   </div>
 
                   {/* Grid miniatura */}
-                  <div className="grid grid-cols-7 gap-0.5 text-center text-[7px] font-bold text-slate-400">
+                  <div className="grid grid-cols-7 gap-0.5 text-center text-[7px] font-bold text-[var(--c-text-muted)]">
                     {WEEKDAY_NAMES.map(n => <div key={n}>{n.slice(0, 1)}</div>)}
                     
                     {days.map((day, idx) => {
@@ -559,8 +559,8 @@ export default function TaskCalendarView({
                             isToday
                               ? 'bg-indigo-600 text-white font-extrabold'
                               : hasTasks
-                                ? 'bg-indigo-500/20 text-indigo-400 font-extrabold ring-1 ring-indigo-500/25'
-                                : 'text-slate-400'
+                                ? 'bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 font-extrabold ring-1 ring-indigo-500/25'
+                                : 'text-[var(--c-text-muted)]'
                           }`}
                         >
                           {day.getDate()}
@@ -583,20 +583,20 @@ export default function TaskCalendarView({
         className={`w-full lg:w-80 rounded-2xl p-4 md:p-5 flex flex-col gap-4 border border-dashed transition-smooth ${
           draggedTaskId && activeDropCell === 'sinFecha'
             ? 'border-indigo-500/40 bg-indigo-500/[0.03] scale-[1.01]'
-            : 'glass-panel border-white/5'
+            : 'glass-panel border-[var(--c-border)] bg-[var(--c-page-bg)]/95 text-[var(--c-text-primary)]'
         }`}
       >
-        <div className="flex items-center justify-between border-b border-white/5 pb-3">
+        <div className="flex items-center justify-between border-b border-[var(--c-border)] pb-3">
           <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-indigo-400" />
-            <h2 className="text-sm font-bold text-slate-100">Ideas Sin Fecha</h2>
+            <Layers className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+            <h2 className="text-sm font-bold text-[var(--c-text-primary)]">Ideas Sin Fecha</h2>
           </div>
-          <span className="text-[10px] font-bold bg-white/5 px-2 py-0.5 rounded-md border border-white/5 text-slate-200">
+          <span className="text-[10px] font-bold bg-[var(--c-border)] px-2 py-0.5 rounded-md border border-[var(--c-border)] text-[var(--c-text-secondary)]">
             {backlogTasks.length}
           </span>
         </div>
 
-        <p className="text-[10px] text-slate-300 leading-normal pl-1">
+        <p className="text-[10px] text-[var(--c-text-muted)] leading-normal pl-1">
           💡 Arrastra tareas desde aquí al calendario para programar su fecha, o arrastra desde el calendario hasta aquí para desprogramarlas.
         </p>
 
@@ -619,11 +619,11 @@ export default function TaskCalendarView({
                       e.stopPropagation();
                       await onToggleTask(task.id, !task.completado);
                     }}
-                    className="text-slate-400 hover:text-emerald-400 cursor-pointer mt-0.5 flex-shrink-0"
+                    className="text-[var(--c-text-muted)] hover:text-emerald-500 cursor-pointer mt-0.5 flex-shrink-0"
                   >
                     <Circle className="w-3.5 h-3.5" />
                   </button>
-                  <span className="text-xs font-bold text-slate-200 leading-snug line-clamp-3">
+                  <span className="text-xs font-bold text-[var(--c-text-primary)] leading-snug line-clamp-3">
                     {task.titulo}
                   </span>
                 </div>
@@ -642,10 +642,10 @@ export default function TaskCalendarView({
               </div>
             ))
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/5 rounded-xl py-12 text-center opacity-55">
-              <Sparkles className="w-5 h-5 text-yellow-400/80 mb-2 animate-pulse" />
-              <span className="text-xs font-semibold text-slate-300">Tintero limpio</span>
-              <span className="text-[10px] text-slate-300 mt-1 max-w-[150px]">
+            <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-[var(--c-border)] rounded-xl py-12 text-center opacity-55">
+              <Sparkles className="w-5 h-5 text-yellow-500/80 mb-2 animate-pulse" />
+              <span className="text-xs font-semibold text-[var(--c-text-secondary)]">Tintero limpio</span>
+              <span className="text-[10px] text-[var(--c-text-muted)] mt-1 max-w-[150px]">
                 ¡No tienes ideas sin programar!
               </span>
             </div>

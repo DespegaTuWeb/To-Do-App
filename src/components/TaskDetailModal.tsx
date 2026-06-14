@@ -100,12 +100,15 @@ export default function TaskDetailModal({
       onClick={onClose}
     >
       <div 
-        className="glass-panel border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-check-pop flex flex-col max-h-[90vh]"
+        className="glass-panel border-[var(--c-border)] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-check-pop flex flex-col max-h-[90vh] text-[var(--c-text-primary)]"
         onClick={(e) => e.stopPropagation()}
-        style={{ borderTop: `4px solid ${categoryColor}` }}
+        style={{ 
+          borderTop: `4px solid ${categoryColor}`,
+          backgroundColor: 'var(--c-page-bg)'
+        }}
       >
         {/* Cabecera */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.01]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--c-border)]">
           <div className="flex items-center gap-2 flex-wrap">
             <span 
               className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border tracking-wider"
@@ -133,7 +136,7 @@ export default function TaskDetailModal({
           </div>
           <button 
             onClick={onClose}
-            className="p-1 hover:bg-white/10 rounded-full transition-smooth text-luxury-secondary hover:text-luxury-primary cursor-pointer"
+            className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-smooth text-luxury-secondary hover:text-luxury-primary cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -171,11 +174,11 @@ export default function TaskDetailModal({
                   <select 
                     value={editCatId || ''} 
                     onChange={(e) => setEditCatId(e.target.value || null)}
-                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs text-luxury-primary focus:ring-1 focus:ring-indigo-500/20 cursor-pointer bg-slate-900/90"
+                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs text-luxury-primary focus:ring-1 focus:ring-indigo-500/20 cursor-pointer bg-[var(--c-input-bg)]"
                   >
-                    <option value="">Inbox (Sin Categoría)</option>
+                    <option value="" className="bg-[var(--c-page-bg)] text-[var(--c-text-primary)]">Inbox (Sin Categoría)</option>
                     {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                      <option key={cat.id} value={cat.id} className="bg-[var(--c-page-bg)] text-[var(--c-text-primary)]">{cat.nombre}</option>
                     ))}
                   </select>
                 </div>
@@ -185,7 +188,7 @@ export default function TaskDetailModal({
                   <button 
                     type="button"
                     onClick={() => setShowCalendar(true)}
-                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs text-luxury-primary text-left flex items-center justify-between cursor-pointer hover:bg-white/5"
+                    className="w-full glass-input px-3.5 py-2.5 rounded-xl text-xs text-luxury-primary text-left flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5"
                   >
                     <span className="truncate">
                       {task.fecha_limite ? formatSpanishDate(task.fecha_limite) : 'Sin fecha'}
@@ -214,7 +217,7 @@ export default function TaskDetailModal({
                       type="color" 
                       value={editGrupoColor}
                       onChange={(e) => setEditGrupoColor(e.target.value)}
-                      className="w-10 h-10 rounded-xl border border-white/10 cursor-pointer bg-transparent p-1"
+                      className="w-10 h-10 rounded-xl border border-[var(--c-border)] cursor-pointer bg-transparent p-1"
                     />
                     <span className="text-xs text-luxury-secondary font-mono">{editGrupoColor.toUpperCase()}</span>
                   </div>
@@ -231,18 +234,18 @@ export default function TaskDetailModal({
                 {task.titulo}
               </h2>
 
-              <div className="flex flex-col gap-1.5 border-t border-white/5 pt-4">
+              <div className="flex flex-col gap-1.5 border-t border-[var(--c-border)] pt-4">
                 <div className="flex items-center gap-1.5 text-luxury-secondary text-[10px] font-bold uppercase tracking-wider">
-                  <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                  <FileText className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
                   <span>Descripción</span>
                 </div>
                 {task.nota ? (
-                  <p className="text-xs md:text-sm text-luxury-secondary leading-relaxed bg-white/[0.01] border border-white/5 p-4 rounded-xl whitespace-pre-wrap font-normal">
+                  <p className="text-xs md:text-sm text-luxury-secondary leading-relaxed bg-[var(--c-surface)] border border-[var(--c-border)] p-4 rounded-xl whitespace-pre-wrap font-normal">
                     {task.nota}
                   </p>
                 ) : (
                   <p 
-                    className="text-xs text-luxury-muted italic hover:text-indigo-500 cursor-pointer p-4 border border-dashed border-white/10 rounded-xl"
+                    className="text-xs text-luxury-muted italic hover:text-indigo-500 cursor-pointer p-4 border border-dashed border-[var(--c-border)] rounded-xl bg-black/5 dark:bg-white/[0.01]"
                     onClick={() => setIsEditing(true)}
                   >
                     Haz clic para agregar una descripción...
@@ -250,7 +253,7 @@ export default function TaskDetailModal({
                 )}
               </div>
 
-              <div className="flex items-center gap-4 mt-2 border-t border-white/5 pt-4 flex-wrap">
+              <div className="flex items-center gap-4 mt-2 border-t border-[var(--c-border)] pt-4 flex-wrap">
                 <div className="flex items-center gap-2 text-xs">
                   <Calendar className="w-4 h-4 text-indigo-500" />
                   <span className="font-bold text-luxury-secondary">Fecha límite:</span>
@@ -267,12 +270,12 @@ export default function TaskDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/5 bg-white/[0.01] flex items-center justify-between gap-3">
+        <div className="px-6 py-4 border-t border-[var(--c-border)] flex items-center justify-between gap-3">
           {isEditing ? (
             <>
               <button 
                 onClick={handleCancel}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-luxury-secondary hover:text-luxury-primary rounded-xl transition-smooth hover:bg-white/5 cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-luxury-secondary hover:text-luxury-primary rounded-xl transition-smooth hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
               >
                 <Undo className="w-3.5 h-3.5" />
                 Cancelar
@@ -289,7 +292,7 @@ export default function TaskDetailModal({
             <>
               <button 
                 onClick={handleDeleteClick}
-                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/5 rounded-xl transition-smooth cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-rose-500 hover:bg-rose-500/10 rounded-xl transition-smooth cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Eliminar Tarea

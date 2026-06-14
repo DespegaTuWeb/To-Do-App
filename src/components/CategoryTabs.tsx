@@ -212,10 +212,10 @@ export default function CategoryTabs({
           onDrop={(e) => handleDropTab(e, null)}
           className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full border transition-smooth whitespace-nowrap cursor-pointer ${
             activeCategoryId === null
-              ? 'bg-white text-slate-950 border-white shadow-lg'
+              ? 'bg-[var(--c-text-primary)] text-[var(--c-page-bg)] border-[var(--c-text-primary)] shadow-lg'
               : activeOverTabId === null
               ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-400 scale-[1.04] shadow-md shadow-indigo-500/10'
-              : 'glass-panel text-luxury-secondary border-white/5 hover:text-luxury-primary glass-panel-hover'
+              : 'glass-panel text-luxury-secondary border-[var(--c-border)] hover:text-luxury-primary glass-panel-hover'
           }`}
         >
           <Inbox className="w-3 h-3" />
@@ -230,7 +230,7 @@ export default function CategoryTabs({
 
           if (isRenaming) {
             return (
-              <div key={cat.id} className="glass-panel border-white/10 rounded-full px-3 py-1 animate-check-pop">
+              <div key={cat.id} className="glass-panel border-[var(--c-border)] rounded-full px-3 py-1 animate-check-pop">
                 <input
                   ref={renameInputRef}
                   type="text"
@@ -269,14 +269,14 @@ export default function CategoryTabs({
                 onTouchMove={handleTouchMove}
                 className={`flex items-center gap-1.5 pl-2.5 pr-3.5 py-1.5 text-xs font-semibold rounded-full border transition-smooth whitespace-nowrap cursor-pointer select-none group relative ${
                   isActive
-                    ? 'bg-white text-slate-950 border-white shadow-lg shadow-white/5'
+                    ? 'bg-[var(--c-text-primary)] text-[var(--c-page-bg)] border-[var(--c-text-primary)] shadow-lg'
                     : activeOverTabId === cat.id
                     ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-400 scale-[1.04] shadow-md shadow-indigo-500/10'
-                    : 'glass-panel text-luxury-secondary border-white/5 hover:text-luxury-primary glass-panel-hover'
+                    : 'glass-panel text-luxury-secondary border-[var(--c-border)] hover:text-luxury-primary glass-panel-hover'
                 }`}
               >
-                <GripVertical className={`w-2.5 h-2.5 text-slate-500 mr-[-2px] cursor-grab active:cursor-grabbing transition-opacity duration-200 ${
-                  isActive ? 'text-slate-600' : 'opacity-40 group-hover:opacity-100'
+                <GripVertical className={`w-2.5 h-2.5 text-[var(--c-text-muted)] mr-[-2px] cursor-grab active:cursor-grabbing transition-opacity duration-200 ${
+                  isActive ? 'text-[var(--c-page-bg)]/80' : 'opacity-40 group-hover:opacity-100'
                 }`} />
 
                 <span
@@ -286,7 +286,7 @@ export default function CategoryTabs({
                 <span className="flex items-center gap-1">
                   {cat.nombre}
                   {sharedCategoryIds.includes(cat.id) && (
-                    <Users className={`w-3 h-3 ${isActive ? 'text-slate-700' : 'text-slate-400'} opacity-75`} />
+                    <Users className={`w-3 h-3 ${isActive ? 'text-[var(--c-page-bg)]' : 'text-[var(--c-text-muted)]'} opacity-75`} />
                   )}
                 </span>
               </button>
@@ -298,7 +298,7 @@ export default function CategoryTabs({
         {isAdding ? (
           <form
             onSubmit={handleAddSubmit}
-            className="flex items-center glass-panel border-white/10 rounded-full pl-3 pr-1 py-1 animate-check-pop"
+            className="flex items-center glass-panel border-[var(--c-border)] rounded-full pl-3 pr-1 py-1 animate-check-pop"
           >
             <input
               ref={addInputRef}
@@ -309,12 +309,12 @@ export default function CategoryTabs({
               onKeyDown={(e) => {
                 if (e.key === 'Escape') setIsAdding(false);
               }}
-              className="bg-transparent text-xs md:text-sm text-luxury-primary focus:outline-none w-20 md:w-24 placeholder:text-slate-500"
+              className="bg-transparent text-xs md:text-sm text-luxury-primary focus:outline-none w-20 md:w-24 placeholder:text-[var(--c-text-muted)]/50"
             />
             <button
               type="button"
               onClick={() => setIsAdding(false)}
-              className="p-1 hover:bg-white/10 rounded-full transition-smooth text-luxury-secondary hover:text-luxury-primary"
+              className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-smooth text-luxury-secondary hover:text-luxury-primary"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -323,7 +323,7 @@ export default function CategoryTabs({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsAdding(true)}
-              className="flex items-center justify-center p-2 rounded-full border border-dashed border-white/15 hover:border-white/30 text-luxury-secondary hover:text-luxury-primary transition-smooth cursor-pointer glass-panel-hover px-3 py-1.5"
+              className="flex items-center justify-center p-2 rounded-full border border-dashed border-[var(--c-border)] hover:border-[var(--c-border-hover)] text-luxury-secondary hover:text-luxury-primary transition-smooth cursor-pointer glass-panel-hover px-3 py-1.5"
               title="Añadir Categoría"
             >
               <Plus className="w-3.5 h-3.5 mr-1" />

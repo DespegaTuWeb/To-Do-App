@@ -47,7 +47,8 @@ export default function ConfirmModal({
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-md transition-opacity duration-300 animate-fade-in p-4">
       <div 
-        className="w-full max-w-sm glass-panel rounded-2xl border border-white/10 p-6 flex flex-col gap-4 animate-check-pop bg-slate-900/90 dark:bg-slate-950/90 light:bg-white/95"
+        className="w-full max-w-sm glass-panel rounded-2xl border border-[var(--c-border)] p-6 flex flex-col gap-4 animate-check-pop text-[var(--c-text-primary)]"
+        style={{ backgroundColor: 'var(--c-page-bg)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3">
@@ -61,7 +62,7 @@ export default function ConfirmModal({
           <h3 className="text-sm font-extrabold text-[var(--c-text-primary)]">{title}</h3>
         </div>
         
-        <p className="text-xs text-slate-400 leading-relaxed font-medium">
+        <p className="text-xs text-[var(--c-text-secondary)] leading-relaxed font-medium">
           {message}
         </p>
 
@@ -69,7 +70,7 @@ export default function ConfirmModal({
           <button
             type="button"
             onClick={onCancel}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-smooth cursor-pointer border border-white/5"
+            className="px-3.5 py-2 rounded-xl text-xs font-bold text-[var(--c-text-secondary)] hover:text-[var(--c-text-primary)] hover:bg-black/5 dark:hover:bg-white/5 transition-smooth cursor-pointer border border-[var(--c-border)]"
           >
             {cancelText}
           </button>

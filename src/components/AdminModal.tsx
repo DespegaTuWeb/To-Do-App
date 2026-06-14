@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Shield, Calendar, Users, Loader2, Search, Check, AlertCircle, Award } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -20,6 +21,21 @@ interface Perfil {
 }
 
 export default function AdminModal({ isOpen, onClose, currentUserId, onRefreshData }: AdminModalProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
   const [profiles, setProfiles] = useState<Perfil[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -113,15 +129,15 @@ export default function AdminModal({ isOpen, onClose, currentUserId, onRefreshDa
   // Calcular estado y tiempo restante
   const getPremiumStatus = (profile: Perfil) => {
     if (!profile.is_premium) {
-      return { status: 'Normal', colorClass: 'text-slate-400 bg-slate-500/5 border border-slate-500/10' };
+      return { status: 'Normal', colorClass: 'text-slate-500 dark:text-slate-400 bg-slate-500/5 border border-slate-500/10' };
     }
     if (!profile.premium_valido_hasta) {
-      return { status: 'Premium Permanente', colorClass: 'text-amber-400 bg-amber-500/10 border border-amber-500/15 font-bold' };
+      return { status: 'Premium Permanente', colorClass: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/15 font-bold' };
     }
     const expiry = new Date(profile.premium_valido_hasta);
     const now = new Date();
     if (expiry < now) {
-      return { status: 'Expirado', colorClass: 'text-rose-400 bg-rose-500/10 border border-rose-500/15' };
+      return { status: 'Expirado', colorClass: 'text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/15' };
     }
 
     const diffTime = Math.abs(expiry.getTime() - now.getTime());
@@ -129,7 +145,7 @@ export default function AdminModal({ isOpen, onClose, currentUserId, onRefreshDa
     
     return {
       status: `Premium (Vence en ${diffDays} ${diffDays === 1 ? 'día' : 'días'})`,
-      colorClass: 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/15 font-bold'
+      colorClass: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/15 font-bold'
     };
   };
 
@@ -156,19 +172,22 @@ export default function AdminModal({ isOpen, onClose, currentUserId, onRefreshDa
     }
   };
 
-  return (
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in"
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-4xl h-[80vh] glass-panel rounded-3xl p-6 shadow-2xl animate-check-pop bg-[var(--c-page-bg)]/95 text-[var(--c-text-primary)] border border-[var(--c-border)] flex flex-col gap-5 relative"
+        className="w-full max-w-4xl h-[80vh] glass-panel rounded-3xl p-6 shadow-2xl animate-check-pop text-[var(--c-text-primary)] border border-[var(--c-border)] flex flex-col gap-5 relative"
+        style={{ backgroundColor: 'var(--c-page-bg)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecera */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <Shield className="w-5 h-5" />
             </div>
             <div className="flex flex-col">
@@ -250,7 +269,7 @@ export default function AdminModal({ isOpen, onClose, currentUserId, onRefreshDa
                             premium_valido_hasta: e.target.checked ? profile.premium_valido_hasta : null,
                           })
                         }
-                        className="w-4 h-4 text-indigo-600 bg-slate-800 rounded border-slate-700 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                        className="w-4 h-4 text-indigo-600 bg-[var(--c-input-bg)] rounded border border-[var(--c-input-border)] focus:ring-indigo-500 cursor-pointer accent-indigo-600"
                       />
                       <span className="text-xs font-semibold text-[var(--c-text-secondary)]">
                         Habilitar Premium
@@ -278,25 +297,25 @@ export default function AdminModal({ isOpen, onClose, currentUserId, onRefreshDa
                         <div className="flex gap-1 mt-1">
                           <button
                             onClick={() => handleQuickExpiry(profile.id, 30)}
-                            className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 hover:bg-indigo-500/20 text-[var(--c-text-secondary)] hover:text-indigo-400 border border-slate-500/5 hover:border-indigo-500/15 cursor-pointer transition-smooth"
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 hover:bg-indigo-500/20 text-[var(--c-text-secondary)] hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-500/5 hover:border-indigo-500/30 cursor-pointer transition-smooth"
                           >
                             +30d
                           </button>
                           <button
                             onClick={() => handleQuickExpiry(profile.id, 90)}
-                            className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 hover:bg-indigo-500/20 text-[var(--c-text-secondary)] hover:text-indigo-400 border border-slate-500/5 hover:border-indigo-500/15 cursor-pointer transition-smooth"
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 hover:bg-indigo-500/20 text-[var(--c-text-secondary)] hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-500/5 hover:border-indigo-500/30 cursor-pointer transition-smooth"
                           >
                             +90d
                           </button>
                           <button
                             onClick={() => handleQuickExpiry(profile.id, 365)}
-                            className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 hover:bg-indigo-500/20 text-[var(--c-text-secondary)] hover:text-indigo-400 border border-slate-500/5 hover:border-indigo-500/15 cursor-pointer transition-smooth"
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 hover:bg-indigo-500/20 text-[var(--c-text-secondary)] hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-500/5 hover:border-indigo-500/30 cursor-pointer transition-smooth"
                           >
                             +1a
                           </button>
                           <button
                             onClick={() => handleQuickExpiry(profile.id, null)}
-                            className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 hover:bg-indigo-500/20 text-[var(--c-text-secondary)] hover:text-indigo-400 border border-slate-500/5 hover:border-indigo-500/15 cursor-pointer transition-smooth flex items-center gap-0.5"
+                            className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 hover:bg-indigo-500/20 text-[var(--c-text-secondary)] hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-500/5 hover:border-indigo-500/30 cursor-pointer transition-smooth flex items-center gap-0.5"
                           >
                             <Award className="w-2.5 h-2.5" />
                             <span>Perm</span>
@@ -336,6 +355,7 @@ export default function AdminModal({ isOpen, onClose, currentUserId, onRefreshDa
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
