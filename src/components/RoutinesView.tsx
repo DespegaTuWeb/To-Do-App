@@ -258,7 +258,7 @@ export default function RoutinesView({
                       const isToday = d.value === todayValue;
                       return (
                         <span
-                          key={d.label}
+                          key={d.value}
                           className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
                             isConfigured
                               ? isToday
