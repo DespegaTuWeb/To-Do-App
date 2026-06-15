@@ -1767,22 +1767,24 @@ export default function Home() {
       ) : (
         <main className="flex flex-col gap-6 flex-1">
           {/* Fila de Captura Rápida con Buscador Integrado */}
-          <section className="flex gap-3">
-            <div className="flex-1">
-              <QuickInput
-                onSubmitTask={async (t, f, gn, gc) => {
-                  await handleCreateTask(t, f, gn, gc);
-                }}
-                activeCategoryName={activeCategoryName}
-                tasks={tasks}
-                categories={categories}
-                onToggleTask={handleToggleTask}
-                onOpenDetail={setSelectedTask}
-                activeGroupName={activeGroupName}
-                activeGroupColor={activeGroupColor}
-              />
-            </div>
-          </section>
+          {viewMode === 'list' && (
+            <section className="flex gap-3">
+              <div className="flex-1">
+                <QuickInput
+                  onSubmitTask={async (t, f, gn, gc) => {
+                    await handleCreateTask(t, f, gn, gc);
+                  }}
+                  activeCategoryName={activeCategoryName}
+                  tasks={tasks}
+                  categories={categories}
+                  onToggleTask={handleToggleTask}
+                  onOpenDetail={setSelectedTask}
+                  activeGroupName={activeGroupName}
+                  activeGroupColor={activeGroupColor}
+                />
+              </div>
+            </section>
+          )}
 
           {/* Barra de Pestañas Dinámicas */}
           {viewMode === 'list' && (
