@@ -63,8 +63,8 @@ export default function TaskCalendarView({
   // Estado para la tarea que se está programando de forma rápida en el backlog
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
 
-  // Filtro de agenda móvil: 'today' | 'tomorrow' | 'week' | 'custom'
-  const [mobileFilter, setMobileFilter] = useState<'today' | 'tomorrow' | 'week' | 'custom'>('today');
+  // Filtro de agenda móvil: 'today' | 'tomorrow' | 'week' | 'custom' | 'overdue'
+  const [mobileFilter, setMobileFilter] = useState<'today' | 'tomorrow' | 'week' | 'custom' | 'overdue'>('today');
 
   // Estado de despliegue del backlog (Ideas sin fecha)
   const [isBacklogExpanded, setIsBacklogExpanded] = useState(false);
@@ -136,15 +136,64 @@ export default function TaskCalendarView({
     return days;
   };
 
-  // Generar los 30 días rodantes a partir de la fecha ancla (para móvil, comenzando con hoy/fecha ancla)
+  // Generar los 7 días a partir de la fecha ancla (para móvil, comenzando con la fecha seleccionada/ancla)
   const getMobileRollingDays = () => {
     const days = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 7; i++) {
       const d = new Date(anchorDate);
       d.setDate(anchorDate.getDate() + i);
       days.push(d);
     }
     return days;
+  };
+
+  const handlePrevMobileWeek = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const newDate = new Date(anchorDate);
+    newDate.setDate(anchorDate.getDate() - 7);
+    
+    if (newDate.getTime() < today.getTime()) {
+      newDate.setTime(today.getTime());
+    }
+    
+    const newDateStr = toLocalYYYYMMDD(newDate);
+    setAnchorDate(newDate);
+    setSelectedMobileDateStr(newDateStr);
+    
+    if (newDateStr === todayStr) {
+      setMobileFilter('today');
+    } else {
+      setMobileFilter('custom');
+    }
+  };
+
+  const handleNextMobileWeek = () => {
+    const newDate = new Date(anchorDate);
+    newDate.setDate(anchorDate.getDate() + 7);
+    const newDateStr = toLocalYYYYMMDD(newDate);
+    setAnchorDate(newDate);
+    setSelectedMobileDateStr(newDateStr);
+    
+    if (newDateStr === todayStr) {
+      setMobileFilter('today');
+    } else {
+      setMobileFilter('custom');
+    }
+  };
+
+  const shouldShowPrevMobileWeek = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const anchor = new Date(anchorDate);
+    anchor.setHours(0, 0, 0, 0);
+    return anchor.getTime() > today.getTime();
+  };
+
+  const isNextMobileWeekDisabled = () => {
+    const nextWeekDate = new Date(anchorDate);
+    nextWeekDate.setDate(anchorDate.getDate() + 7);
+    return nextWeekDate.getMonth() !== anchorDate.getMonth() || nextWeekDate.getFullYear() !== anchorDate.getFullYear();
   };
 
   // Generar los 7 días de la semana a partir del día de hoy real (para agrupar en el filtro de la semana)
@@ -313,16 +362,31 @@ export default function TaskCalendarView({
         {/* Panel de Horizontes Rápidos */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[var(--c-surface)] p-3 rounded-2xl border border-[var(--c-border)] shadow-sm">
           {[
-            { id: 'hoy', label: 'Hoy', count: tasks.filter(t => t.fecha_limite === todayStr && !t.completado).length, color: 'text-indigo-500' },
-            { id: 'manana', label: 'Mañana', count: tasks.filter(t => t.fecha_limite === tomorrowStr && !t.completado).length, color: 'text-blue-500' },
-            { id: 'semana', label: 'Esta Semana', count: thisWeekCount, color: 'text-emerald-500' },
-            { id: 'vencidas', label: 'Vencidas', count: overdueTasks.length, color: overdueTasks.length > 0 ? 'text-rose-500 font-extrabold' : 'text-[var(--c-text-muted)]' }
-          ].map(horizon => (
-            <div key={horizon.id} className="flex flex-col gap-1 p-2.5 rounded-xl bg-[var(--c-page-bg)] border border-[var(--c-border)]">
-              <span className="text-[10px] font-bold text-[var(--c-text-muted)] uppercase tracking-wider">{horizon.label}</span>
-              <span className={`text-base font-extrabold ${horizon.color}`}>{horizon.count} tareas</span>
-            </div>
-          ))}
+            { id: 'hoy', label: 'Hoy', count: tasks.filter(t => t.fecha_limite === todayStr && !t.completado).length, color: 'text-indigo-500', clickable: false },
+            { id: 'manana', label: 'Mañana', count: tasks.filter(t => t.fecha_limite === tomorrowStr && !t.completado).length, color: 'text-blue-500', clickable: false },
+            { id: 'semana', label: 'Esta Semana', count: thisWeekCount, color: 'text-emerald-500', clickable: false },
+            { id: 'vencidas', label: 'Vencidas', count: overdueTasks.length, color: overdueTasks.length > 0 ? 'text-rose-500 font-extrabold' : 'text-[var(--c-text-muted)]', clickable: overdueTasks.length > 0 }
+          ].map(horizon => {
+            const isClickable = horizon.clickable;
+            const Component = isClickable ? 'button' : 'div';
+            return (
+              <Component
+                key={horizon.id}
+                type={isClickable ? 'button' : undefined}
+                onClick={isClickable ? () => {
+                  setMobileFilter('overdue');
+                } : undefined}
+                className={`flex flex-col gap-1 p-2.5 rounded-xl bg-[var(--c-page-bg)] border border-[var(--c-border)] text-left w-full ${
+                  isClickable 
+                    ? 'hover:border-rose-500/30 hover:bg-rose-500/[0.02] cursor-pointer transition-all active:scale-[0.98]' 
+                    : ''
+                }`}
+              >
+                <span className="text-[10px] font-bold text-[var(--c-text-muted)] uppercase tracking-wider">{horizon.label}</span>
+                <span className={`text-base font-extrabold ${horizon.color}`}>{horizon.count} tareas</span>
+              </Component>
+            );
+          })}
         </div>
 
         {/* Banner de tareas retrasadas */}
@@ -640,7 +704,11 @@ export default function TaskCalendarView({
                     if (e.target.value) {
                       const dateStr = e.target.value;
                       setSelectedMobileDateStr(dateStr);
-                      setMobileFilter('custom');
+                      if (dateStr === todayStr) {
+                        setMobileFilter('today');
+                      } else {
+                        setMobileFilter('custom');
+                      }
                       setAnchorDate(new Date(dateStr + 'T00:00:00')); // Mueve el inicio del carrusel al día seleccionado
                     }
                   }}
@@ -660,44 +728,70 @@ export default function TaskCalendarView({
               </div>
             </div>
 
-            {/* Selector de días horizontal (Tira semanal rodante) - Oculto si se selecciona vista de Semana completa */}
-            {mobileFilter !== 'week' && (
-              <div className="flex items-center justify-between gap-1.5 overflow-x-auto py-1.5 no-scrollbar">
-                {getMobileRollingDays().map((day) => {
-                  const dayStr = toLocalYYYYMMDD(day);
-                  const isSelected = selectedMobileDateStr === dayStr;
-                  const isToday = dayStr === todayStr;
-                  const dayTasksCount = tasks.filter(t => t.fecha_limite === dayStr && !t.completado).length;
+            {/* Selector de días horizontal (Tira semanal rodante) - Oculto si se selecciona vista de Semana completa o Tareas Vencidas */}
+            {mobileFilter !== 'week' && mobileFilter !== 'overdue' && (
+              <div className="flex items-center gap-2 w-full">
+                {/* Botón semana anterior (solo si no estamos en la semana de hoy) */}
+                {shouldShowPrevMobileWeek() && (
+                  <button
+                    type="button"
+                    onClick={handlePrevMobileWeek}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center border border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-text-secondary)] hover:border-[var(--c-border-hover)] transition-smooth cursor-pointer flex-shrink-0"
+                    title="Semana anterior"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                )}
 
-                  return (
-                    <button
-                      key={dayStr}
-                      onClick={() => {
-                        setSelectedMobileDateStr(dayStr);
-                        if (dayStr === todayStr) {
-                          setMobileFilter('today');
-                        } else {
-                          setMobileFilter('custom');
-                        }
-                      }}
-                      className={`flex-1 min-w-[44px] p-2.5 rounded-2xl flex flex-col items-center gap-1 transition-smooth border cursor-pointer ${
-                        isSelected
-                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                          : isToday
-                            ? 'border-indigo-500/25 text-indigo-500 bg-indigo-500/[0.01]'
-                            : 'border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-text-secondary)] hover:border-[var(--c-border-hover)]'
-                      }`}
-                    >
-                      <span className="text-[8px] font-extrabold tracking-wider uppercase opacity-65">
-                        {WEEKDAY_NAMES[day.getDay() === 0 ? 6 : day.getDay() - 1].slice(0, 1)}
-                      </span>
-                      <span className="text-xs font-extrabold leading-none">{day.getDate()}</span>
-                      {dayTasksCount > 0 && (
-                        <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-500 animate-pulse'}`} />
-                      )}
-                    </button>
-                  );
-                })}
+                {/* Tira Semanal de 7 días */}
+                <div className="flex-1 flex items-center justify-between gap-1.5 overflow-x-auto py-1 no-scrollbar">
+                  {getMobileRollingDays().map((day) => {
+                    const dayStr = toLocalYYYYMMDD(day);
+                    const isSelected = selectedMobileDateStr === dayStr;
+                    const isToday = dayStr === todayStr;
+                    const dayTasksCount = tasks.filter(t => t.fecha_limite === dayStr && !t.completado).length;
+
+                    return (
+                      <button
+                        key={dayStr}
+                        onClick={() => {
+                          setSelectedMobileDateStr(dayStr);
+                          if (dayStr === todayStr) {
+                            setMobileFilter('today');
+                          } else {
+                            setMobileFilter('custom');
+                          }
+                        }}
+                        className={`w-[36px] md:w-[42px] flex-shrink-0 p-2 rounded-xl flex flex-col items-center gap-1 transition-smooth border cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
+                            : isToday
+                              ? 'border-indigo-500/25 text-indigo-500 bg-indigo-500/[0.01]'
+                              : 'border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-text-secondary)] hover:border-[var(--c-border-hover)]'
+                        }`}
+                      >
+                        <span className="text-[7.5px] font-extrabold tracking-wider uppercase opacity-65">
+                          {WEEKDAY_NAMES[day.getDay() === 0 ? 6 : day.getDay() - 1].slice(0, 1)}
+                        </span>
+                        <span className="text-xs font-extrabold leading-none">{day.getDate()}</span>
+                        {dayTasksCount > 0 && (
+                          <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-indigo-500 animate-pulse'}`} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Botón semana siguiente */}
+                <button
+                  type="button"
+                  disabled={isNextMobileWeekDisabled()}
+                  onClick={handleNextMobileWeek}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center border border-[var(--c-border)] bg-[var(--c-surface)] text-[var(--c-text-secondary)] hover:border-[var(--c-border-hover)] disabled:opacity-20 disabled:pointer-events-none transition-smooth cursor-pointer flex-shrink-0"
+                  title="Semana siguiente"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
 
@@ -709,6 +803,7 @@ export default function TaskCalendarView({
                   {mobileFilter === 'tomorrow' && 'Agenda de Mañana'}
                   {mobileFilter === 'week' && 'Planificación Semanal'}
                   {mobileFilter === 'custom' && `Agenda: ${selectedMobileDateStr.split('-').reverse().slice(0, 2).join('/')}`}
+                  {mobileFilter === 'overdue' && 'Tareas Vencidas'}
                 </span>
                 <span className="text-[9px] font-extrabold text-[var(--c-text-muted)] bg-[var(--c-border)] px-1.5 py-0.2 rounded border border-[var(--c-border)]">
                   {mobileFilter === 'week' 
@@ -716,7 +811,9 @@ export default function TaskCalendarView({
                         if (!t.fecha_limite || t.completado) return false;
                         return t.fecha_limite >= todayStr && t.fecha_limite <= toLocalYYYYMMDD(new Date(Date.now() + 6 * 86400000));
                       }).length
-                    : tasks.filter(t => t.fecha_limite === selectedMobileDateStr && !t.completado).length
+                    : mobileFilter === 'overdue'
+                      ? overdueTasks.length
+                      : tasks.filter(t => t.fecha_limite === selectedMobileDateStr && !t.completado).length
                   } tareas
                 </span>
               </div>
@@ -769,7 +866,7 @@ export default function TaskCalendarView({
                                   >
                                     <Circle className="w-3.5 h-3.5" />
                                   </button>
-                                  <span className="text-xs font-bold text-[var(--c-text-primary)] leading-snug line-clamp-2">
+                                  <span className="text-xs font-bold text-[var(--c-text-primary)] leading-snug line-clamp-2 text-left">
                                     {task.titulo}
                                   </span>
                                 </div>
@@ -794,6 +891,60 @@ export default function TaskCalendarView({
                       </div>
                     );
                   })
+                ) : mobileFilter === 'overdue' ? (
+                  // Vista de Tareas Vencidas
+                  <div className="flex flex-col gap-2">
+                    {overdueTasks.length > 0 ? (
+                      overdueTasks
+                        .sort((a, b) => a.titulo.localeCompare(b.titulo))
+                        .map(task => (
+                          <div
+                            key={task.id}
+                            onClick={() => setSelectedTask(task)}
+                            className="glass-panel p-3 rounded-xl border-l-2 cursor-pointer transition-smooth flex items-center justify-between gap-3 animate-fade-in"
+                            style={{ borderLeftColor: getCategoryDetails(task.categoria_id).color, backgroundColor: 'var(--c-surface)' }}
+                          >
+                            <div className="flex items-start gap-2.5">
+                              <button
+                                type="button"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  await onToggleTask(task.id, !task.completado);
+                                }}
+                                className="text-[var(--c-text-muted)] hover:text-emerald-500 cursor-pointer mt-0.5"
+                              >
+                                <Circle className="w-3.5 h-3.5" />
+                              </button>
+                              <div className="flex flex-col gap-0.5 text-left">
+                                <span className="text-xs font-bold text-[var(--c-text-primary)] leading-snug line-clamp-2">
+                                  {task.titulo}
+                                </span>
+                                <span className="text-[9.5px] font-extrabold text-rose-500">
+                                  ⚠️ Venció el: {task.fecha_limite?.split('-').reverse().slice(0, 2).join('/')}
+                                </span>
+                              </div>
+                            </div>
+                            {task.categoria_id && (
+                              <span 
+                                className="text-[8px] font-extrabold px-1.5 py-0.5 rounded border flex-shrink-0"
+                                style={{ 
+                                  borderColor: `${getCategoryDetails(task.categoria_id).color}25`, 
+                                  color: getCategoryDetails(task.categoria_id).color,
+                                  backgroundColor: `${getCategoryDetails(task.categoria_id).color}08`
+                                }}
+                              >
+                                {getCategoryDetails(task.categoria_id).nombre}
+                              </span>
+                            )}
+                          </div>
+                        ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center border border-dashed border-[var(--c-border)] rounded-xl py-8 opacity-45 text-center">
+                        <Sparkles className="w-4.5 h-4.5 text-[var(--c-text-muted)] mb-1.5 animate-pulse" />
+                        <span className="text-xs font-semibold text-[var(--c-text-muted)]">No hay tareas vencidas</span>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   // Vista de un solo día (Día Actual / Mañana / Custom)
                   <div className="flex flex-col gap-2">
@@ -819,7 +970,7 @@ export default function TaskCalendarView({
                               >
                                 <Circle className="w-3.5 h-3.5" />
                               </button>
-                              <span className="text-xs font-bold text-[var(--c-text-primary)] leading-snug line-clamp-2">
+                              <span className="text-xs font-bold text-[var(--c-text-primary)] leading-snug line-clamp-2 text-left">
                                 {task.titulo}
                               </span>
                             </div>
